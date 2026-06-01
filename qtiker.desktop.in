@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Qtiker
+Comment=Small Qt clicker game
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/qtiker
+Icon=qtiker
+Terminal=false
+StartupNotify=true
+Categories=Game;
+Keywords=clicker;game;qt;linux;

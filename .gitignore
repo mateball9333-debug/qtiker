@@ -1,0 +1,15 @@
+build/
+.git-real/
+cmake-build-*/
+.cache/
+.idea/
+.vscode/
+*.user
+*.swp
+*.swo
+
+# Local package outputs
+*.pkg.tar.*
+*.src.tar.*
+src/
+pkg/

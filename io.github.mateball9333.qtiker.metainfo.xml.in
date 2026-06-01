@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.mateball9333.qtiker</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <developer id="io.github.mateball9333">
+    <name>Qtiker contributors</name>
+  </developer>
+  <name>Qtiker</name>
+  <summary>Small Qt clicker game for Linux</summary>
+  <description>
+    <p>Qtiker is a compact Qt Widgets clicker game with simple upgrades, passive income, local progress saving, and a small Linux desktop integration.</p>
+  </description>
+  <launchable type="desktop-id">qtiker.desktop</launchable>
+  <provides>
+    <binary>qtiker</binary>
+  </provides>
+  <categories>
+    <category>Game</category>
+  </categories>
+  <url type="homepage">https://github.com/mateball9333-debug/qtiker</url>
+  <releases>
+    <release version="@PROJECT_VERSION@" date="2026-06-01">
+      <description>
+        <p>Initial packaged version.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+</component>
