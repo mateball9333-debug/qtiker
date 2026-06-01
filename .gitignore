@@ -13,3 +13,6 @@ cmake-build-*/
 *.src.tar.*
 src/
 pkg/
+packaging/aur/*/src/
+packaging/aur/*/pkg/
+packaging/aur/*/*/
