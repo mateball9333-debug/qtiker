@@ -20,7 +20,12 @@
   </categories>
   <url type="homepage">https://github.com/mateball9333-debug/qtiker</url>
   <releases>
-    <release version="@PROJECT_VERSION@" date="2026-06-01">
+    <release version="@PROJECT_VERSION@" date="2026-06-02">
+      <description>
+        <p>Maintenance release with in-game release notes and metadata updates.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-06-01">
       <description>
         <p>Initial packaged version.</p>
       </description>

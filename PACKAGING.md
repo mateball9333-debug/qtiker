@@ -38,8 +38,8 @@ git init
 git add .
 git commit -m "Initial Qtiker package"
 gh repo create mateball9333-debug/qtiker --public --source=. --remote=origin --push
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 If an empty `.git` directory is present and Git says this is not a repository,
