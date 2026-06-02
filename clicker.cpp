@@ -415,6 +415,13 @@ QString Clicker::changelogHtml() const {
             .date { color: #777; font-size: 9pt; }
             .entry { padding-left: 2px; }
         </style>
+        <h3><span class="version">0.1.2</span> <span class="date">2026-06-02</span></h3>
+        <table>
+            <tr>
+                <td class="icon"><img src="%2" width="13" height="13"></td>
+                <td class="entry">Optimized PNG assets — binary ~1 MB lighter.</td>
+            </tr>
+        </table>
         <h3><span class="version">0.1.1</span> <span class="date">2026-06-02</span></h3>
         <table>
             <tr>
