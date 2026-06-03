@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qtiker VERSION 0.2.0 LANGUAGES CXX)
+project(qtiker VERSION 0.2.1 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CTest)
@@ -23,6 +23,9 @@ add_executable(qtiker
     src/legacy_clicker.cpp
     src/legacy_clicker.h
     src/legacy_gamestate.h
+    src/particle_overlay.cpp
+    src/particle_overlay.h
+    src/release_notes.h
     src/appversion.h
 )
 target_link_libraries(qtiker Qt6::Widgets Qt6::Svg)
@@ -34,12 +37,18 @@ qt_add_resources(qtiker "app_resources"
         assets/ui/add.svg
         assets/ui/carat.png
         assets/ui/changed.svg
-        assets/ui/inbox.svg
+        assets/ui/clock.svg
         assets/ui/info.svg
+        assets/ui/release-notes.svg
         assets/ui/remove.svg
         assets/ui/reset.svg
         assets/ui/settings.svg
         assets/ui/statistics.svg
+        assets/ui/stat-down-double.svg
+        assets/ui/stat-down.svg
+        assets/ui/stat-neutral.svg
+        assets/ui/stat-up-double.svg
+        assets/ui/stat-up.svg
 )
 
 if(BUILD_TESTING)

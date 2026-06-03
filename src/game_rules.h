@@ -6,6 +6,7 @@
 
 enum class TimedBuff {
     IncomeGain = 0,
+    ClickGain = 1,
 };
 
 enum class TimedBuffEffect {
@@ -13,9 +14,11 @@ enum class TimedBuffEffect {
     Income,
 };
 
-inline constexpr int TimedBuffCount = 1;
+inline constexpr int TimedBuffCount = 2;
 inline constexpr qint64 CaratBurnCost = 1000;
 inline constexpr qint64 CaratBurnReward = 1;
+inline constexpr qint64 SecondCardSlotCost = 25;
+inline constexpr qint64 PenaltyUpgradeCost = 10;
 
 struct TimedBuffRule {
     TimedBuff buff;
@@ -37,8 +40,19 @@ inline constexpr TimedBuffRule IncomeGainBuffRule = {
     2,
 };
 
+inline constexpr TimedBuffRule ClickGainBuffRule = {
+    TimedBuff::ClickGain,
+    TimedBuffEffect::Click,
+    "Click gain 1.25x",
+    1,
+    30,
+    5,
+    4,
+};
+
 inline constexpr std::array<TimedBuffRule, TimedBuffCount> TimedBuffRules = {
     IncomeGainBuffRule,
+    ClickGainBuffRule,
 };
 
 inline int timedBuffIndex(TimedBuff buff) {

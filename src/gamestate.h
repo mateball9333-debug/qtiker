@@ -23,9 +23,13 @@ struct GameState {
     qint64 clickButtonRightClicks = 0;
     std::array<qint64, TimedBuffCount> buffExpiresAtMs = {};
     int selectedCard = -1;
+    int selectedCard2 = -1;
+    bool secondCardSlotUnlocked = false;
+    bool secondCardPenaltyUpgraded = false;
     std::array<int, GachaCardCount> cardCounts = {};
     int clickCost = 25;
     int incomeCost = 60;
+    bool incomeBuffEasterEgg = false;
 
     void reset() {
         score = 0;
@@ -42,8 +46,12 @@ struct GameState {
         clickButtonRightClicks = 0;
         buffExpiresAtMs.fill(0);
         selectedCard = -1;
+        selectedCard2 = -1;
+        secondCardSlotUnlocked = false;
+        secondCardPenaltyUpgraded = false;
         cardCounts.fill(0);
         clickCost = 25;
         incomeCost = 60;
+        incomeBuffEasterEgg = false;
     }
 };

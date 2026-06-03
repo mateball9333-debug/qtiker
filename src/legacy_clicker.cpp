@@ -1,5 +1,6 @@
 #include "legacy_clicker.h"
 
+#include "appversion.h"
 #include "game_rules.h"
 
 #include <QBuffer>
@@ -16,6 +17,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
+#include <QScrollBar>
 #include <QSettings>
 #include <QSvgRenderer>
 #include <QTextBrowser>
@@ -25,7 +27,7 @@
 namespace {
 constexpr QSize LegacyIconSize(16, 16);
 constexpr QSize LegacyIconButtonSize(32, 28);
-constexpr QSize LegacyChangelogButtonSize(86, 28);
+constexpr QSize LegacyChangelogButtonSize(92, 28);
 constexpr auto LegacyVersion = "0.1.2";
 }
 
@@ -170,7 +172,7 @@ void LegacyClicker::showSettings() {
     auto *modeText = new QLabel("Game version", modeBox);
     setFont(modeText, modeText->font().pointSize(), true);
 
-    auto *modernButton = new QPushButton("Qtiker 0.2.0", modeBox);
+    auto *modernButton = new QPushButton(QString("Qtiker %1").arg(AppVersion), modeBox);
     connect(modernButton, &QPushButton::clicked, this, [this, dialog]() {
         emit switchToModernRequested();
         dialog->accept();
@@ -221,11 +223,36 @@ void LegacyClicker::showChangelog() {
     changes->setOpenExternalLinks(false);
     changes->setHtml(changelogHtml());
 
+    auto *foundButton = new QPushButton("you found me!", dialog);
+    QSettings eeCheck("qtiker", "qtiker");
+    const bool alreadyFound = eeCheck.value("easterEggFound", false).toBool();
+    if (alreadyFound) {
+        foundButton->setText("you found me! \u2713");
+        foundButton->setEnabled(false);
+    } else {
+        foundButton->setVisible(false);
+        connect(changes->verticalScrollBar(), &QScrollBar::valueChanged, this,
+                [changes, foundButton](int value) {
+                    foundButton->setVisible(value >= changes->verticalScrollBar()->maximum() - 2);
+                });
+        connect(foundButton, &QPushButton::clicked, this, [foundButton]() {
+            QSettings settings("qtiker", "qtiker");
+            settings.setValue("easterEggFound", true);
+            foundButton->setEnabled(false);
+            foundButton->setText("you found me! \u2713");
+        });
+        QTimer::singleShot(0, this, [changes, foundButton]() {
+            auto *bar = changes->verticalScrollBar();
+            foundButton->setVisible(bar->value() >= bar->maximum() - 2);
+        });
+    }
+
     auto *closeButton = new QPushButton("Close", dialog);
     connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
 
     layout->addLayout(titleLayout);
     layout->addWidget(changes, 1);
+    layout->addWidget(foundButton);
     layout->addWidget(closeButton);
 
     dialog->show();
@@ -255,7 +282,7 @@ void LegacyClicker::buildUi() {
     mainLayout->setContentsMargins(14, 14, 14, 14);
     mainLayout->setSpacing(10);
 
-    changelogButton = new QPushButton(QString("v%1").arg(LegacyVersion), this);
+    changelogButton = new QPushButton(QString("  v%1").arg(LegacyVersion), this);
     changelogButton->setIconSize(LegacyIconSize);
     changelogButton->setToolTip("Release notes");
     changelogButton->setFixedSize(LegacyChangelogButtonSize);
@@ -333,7 +360,7 @@ void LegacyClicker::startIncomeTimer() {
 void LegacyClicker::applyThemeIcons() {
     if (changelogButton != nullptr) {
         const auto iconColor = changelogButton->palette().color(QPalette::ButtonText);
-        changelogButton->setIcon(tintedSvgIcon(":/assets/ui/inbox.svg", iconColor, LegacyIconSize));
+        changelogButton->setIcon(tintedSvgIcon(":/assets/ui/release-notes.svg", iconColor, LegacyIconSize));
     }
 
     if (settingsButton != nullptr) {
@@ -348,8 +375,10 @@ void LegacyClicker::refreshUi() {
                             .arg(game.perClick)
                             .arg(game.perSecond));
 
-    clickUpgradeButton->setText(QString("Click +1       %1").arg(game.clickCost));
-    incomeUpgradeButton->setText(QString("Income +1/sec  %1").arg(game.incomeCost));
+    const int clickUpgradesBought = game.perClick > 1 ? game.perClick - 1 : 0;
+    const int incomeUpgradesBought = game.perSecond > 0 ? game.perSecond : 0;
+    clickUpgradeButton->setText(QString("x%1  Click +1       %2").arg(clickUpgradesBought).arg(game.clickCost));
+    incomeUpgradeButton->setText(QString("x%1  Income +1/sec  %2").arg(incomeUpgradesBought).arg(game.incomeCost));
 
     clickUpgradeButton->setEnabled(game.score >= game.clickCost);
     incomeUpgradeButton->setEnabled(game.score >= game.incomeCost);

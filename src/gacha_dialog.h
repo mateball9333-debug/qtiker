@@ -39,20 +39,29 @@ public:
     explicit GachaDialog(QWidget *parent = nullptr);
 
     void setArchCount(int arches);
-    void setInventory(const std::array<int, GachaCardCount> &cardCounts, int selectedCard);
+    void setInventory(const std::array<int, GachaCardCount> &cardCounts, int selectedCard, int selectedCard2);
+    void setSecondCardSlotEnabled(bool unlocked);
+    void setSecondCardPenaltyUpgraded(bool upgraded);
+    void setActiveSlot(int slot);
     void showCard(const GachaCard &card, int ownedCount);
     void showMessage(const QString &message);
 
 signals:
     void rollRequested();
     void cardSelected(int index);
+    void cardSelectedForSlot2(int index);
+    void slotChanged(int slot);
 
 private:
-    void updateCardButton(int index, int ownedCount, bool selected);
+    void updateCardButton(int index, int ownedCount, bool selected, bool selected2);
 
     QLabel *archLabel = nullptr;
     QLabel *cardLabel = nullptr;
     QLabel *messageLabel = nullptr;
     std::array<QPushButton *, GachaCardCount> cardButtons = {};
     QPushButton *rollButton = nullptr;
+    QPushButton *slot1Button = nullptr;
+    QPushButton *slot2Button = nullptr;
+    int activeSlot = 1;
+    bool penaltyUpgraded = false;
 };

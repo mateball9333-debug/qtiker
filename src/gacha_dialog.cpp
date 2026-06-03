@@ -121,17 +121,43 @@ GachaDialog::GachaDialog(QWidget *parent) : QDialog(parent) {
         cardButtons[index] = new QPushButton(this);
         cardButtons[index]->setMinimumHeight(34);
         connect(cardButtons[index], &QPushButton::clicked, this, [this, index]() {
-            emit cardSelected(index);
+            if (activeSlot == 1) {
+                emit cardSelected(index);
+            } else {
+                emit cardSelectedForSlot2(index);
+            }
         });
     }
 
     rollButton = new QPushButton("Roll - 1 Arch", this);
     connect(rollButton, &QPushButton::clicked, this, &GachaDialog::rollRequested);
 
+    slot1Button = new QPushButton("Slot 1: —", this);
+    slot1Button->setMinimumHeight(28);
+    connect(slot1Button, &QPushButton::clicked, this, [this]() {
+        activeSlot = 1;
+        emit slotChanged(1);
+    });
+
+    slot2Button = new QPushButton("Slot 2: —", this);
+    slot2Button->setMinimumHeight(28);
+    slot2Button->setIcon(QIcon(":/assets/ui/stat-down.svg"));
+    slot2Button->setVisible(false);
+    connect(slot2Button, &QPushButton::clicked, this, [this]() {
+        activeSlot = 2;
+        emit slotChanged(2);
+    });
+
+    auto *slotsLayout = new QHBoxLayout();
+    slotsLayout->setSpacing(8);
+    slotsLayout->addWidget(slot1Button, 1);
+    slotsLayout->addWidget(slot2Button, 1);
+
     auto *closeButton = new QPushButton("Close", this);
     connect(closeButton, &QPushButton::clicked, this, &QDialog::accept);
 
     layout->addLayout(topLayout);
+    layout->addLayout(slotsLayout);
     layout->addWidget(cardLabel);
     for (auto *button : cardButtons) {
         layout->addWidget(button);
@@ -141,7 +167,7 @@ GachaDialog::GachaDialog(QWidget *parent) : QDialog(parent) {
     layout->addWidget(closeButton);
 
     setArchCount(0);
-    setInventory({}, -1);
+    setInventory({}, -1, -1);
 }
 
 void GachaDialog::setArchCount(int arches) {
@@ -149,10 +175,71 @@ void GachaDialog::setArchCount(int arches) {
     rollButton->setEnabled(arches >= 1);
 }
 
-void GachaDialog::setInventory(const std::array<int, GachaCardCount> &cardCounts, int selectedCard) {
+void GachaDialog::setInventory(const std::array<int, GachaCardCount> &cardCounts, int selectedCard, int selectedCard2) {
     for (int index = 0; index < debugGachaCardCount(); ++index) {
-        updateCardButton(index, cardCounts[index], selectedCard == index);
+        updateCardButton(index, cardCounts[index], selectedCard == index, selectedCard2 == index);
     }
+
+    const auto fmtSlot = [&](int slotCard) -> QString {
+        if (slotCard < 0 || slotCard >= debugGachaCardCount()) {
+            return "---";
+        }
+        const auto c = debugGachaCardAt(slotCard);
+        return QString("%1 x%2").arg(c.name).arg(cardCounts[slotCard]);
+    };
+
+    const auto effMultText = [&](int slotCard) -> QString {
+        if (slotCard < 0 || slotCard >= debugGachaCardCount()) {
+            return QString();
+        }
+        const auto card = debugGachaCardAt(slotCard);
+        const int extraTenths = effectiveCardCopies(cardCounts[slotCard]) - 1;
+        const int stackedNum = card.multiplierNumerator * 10 + extraTenths * card.multiplierDenominator;
+        const int stackedDen = card.multiplierDenominator * 10;
+        const int penalty = penaltyUpgraded ? 33 : 55;
+        const int penNum = stackedDen * penalty + stackedNum * (100 - penalty);
+        const int penDen = stackedDen * 100;
+        const double effective = static_cast<double>(penNum) / static_cast<double>(penDen);
+        if (qFuzzyCompare(effective, static_cast<double>(static_cast<int>(effective)))) {
+            return QString("x%1").arg(static_cast<int>(effective));
+        }
+        return QString("x%1").arg(effective, 0, 'f', 2);
+    };
+
+    slot1Button->setText(QString("Slot 1: %1").arg(fmtSlot(selectedCard)));
+    if (selectedCard2 >= 0) {
+        const auto eff = effMultText(selectedCard2);
+        slot2Button->setText(QString("Slot 2: %1 > %2").arg(fmtSlot(selectedCard2), eff));
+        slot2Button->setIcon(QIcon(penaltyUpgraded
+            ? ":/assets/ui/stat-down.svg"
+            : ":/assets/ui/stat-down-double.svg"));
+    } else {
+        slot2Button->setText("Slot 2: ---");
+        slot2Button->setIcon(QIcon());
+    }
+
+    const auto highlight = [&](QPushButton *btn, bool active) {
+        btn->setStyleSheet(active
+            ? "QPushButton { border: 2px solid palette(highlight); padding: 4px 8px; }"
+            : "QPushButton { border: 1px solid palette(mid); padding: 4px 8px; }");
+    };
+    highlight(slot1Button, activeSlot == 1);
+    highlight(slot2Button, activeSlot == 2);
+}
+
+void GachaDialog::setSecondCardSlotEnabled(bool unlocked) {
+    slot2Button->setVisible(unlocked);
+    if (!unlocked) {
+        activeSlot = 1;
+    }
+}
+
+void GachaDialog::setSecondCardPenaltyUpgraded(bool upgraded) {
+    penaltyUpgraded = upgraded;
+}
+
+void GachaDialog::setActiveSlot(int slot) {
+    activeSlot = slot;
 }
 
 void GachaDialog::showCard(const GachaCard &card, int ownedCount) {
@@ -169,12 +256,12 @@ void GachaDialog::showMessage(const QString &message) {
     messageLabel->setText(message);
 }
 
-void GachaDialog::updateCardButton(int index, int ownedCount, bool selected) {
+void GachaDialog::updateCardButton(int index, int ownedCount, bool selected, bool selected2) {
     const auto card = debugGachaCardAt(index);
-    const auto marker = selected ? "* " : "";
+    const auto marker = selected ? (selected2 ? "*⁑" : "* ") : (selected2 ? "⁑ " : "  ");
     cardButtons[index]->setText(QString("%1%2  %3  x%4")
                                     .arg(marker, card.name, gachaEffectText(card, ownedCount))
                                     .arg(ownedCount));
-    cardButtons[index]->setStyleSheet(buttonStyle(card.color, selected));
+    cardButtons[index]->setStyleSheet(buttonStyle(card.color, selected || selected2));
     cardButtons[index]->setEnabled(ownedCount > 0);
 }

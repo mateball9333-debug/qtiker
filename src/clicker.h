@@ -12,9 +12,12 @@
 class QCloseEvent;
 class QEvent;
 class QFrame;
+class QResizeEvent;
 class GachaDialog;
+class QGraphicsDropShadowEffect;
 class QLabel;
 class QObject;
+class ParticleOverlay;
 class QPushButton;
 class QTimer;
 enum class GachaEffect;
@@ -32,6 +35,7 @@ protected:
     void changeEvent(QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
     void makeClick();
@@ -43,10 +47,25 @@ private slots:
     void showChangelog();
     void showInfo();
     void showGacha();
+    void selectGachaCard(GachaDialog *dialog, int index);
+    void selectGachaCard2(GachaDialog *dialog, int index);
     void showCarat();
     void showStatistics();
 
 private:
+    enum class TextEffectMode {
+        RainbowGlow,
+        RainbowFill,
+        SolidFill
+    };
+
+    struct TextEffectState {
+        QGraphicsDropShadowEffect *glowEffect = nullptr;
+        QColor originalTextColor;
+        int hue = 0;
+        bool hasOriginalTextColor = false;
+    };
+
     void showTux();
     void setupWindow();
     void buildUi();
@@ -55,6 +74,26 @@ private:
     void startIncomeTimer();
     void applyThemeIcons();
     void setThemeIcon(QPushButton *button, const QString &path);
+    QGraphicsDropShadowEffect *setButtonGlow(
+        QPushButton *button,
+        QGraphicsDropShadowEffect *effect,
+        const QColor &color
+    );
+    void clearButtonGlow(QPushButton *button, QGraphicsDropShadowEffect *effect);
+    void applyTextEffect(
+        QLabel *label,
+        TextEffectState &state,
+        TextEffectMode mode,
+        const QColor &fillColor = QColor()
+    );
+    void clearTextEffect(QLabel *label, TextEffectState &state);
+    QColor activeCardColorForEffect(GachaEffect effect) const;
+    void applyStatsTextColor(QLabel *label, TextEffectState &state, const QColor &accentColor);
+    void startChangelogHighlightIfNeeded();
+    void updateChangelogHighlight();
+    void stopChangelogHighlight();
+    void updateStatsBuffGlow();
+    void markChangelogSeen();
     void refreshUi();
     void loadGame();
     void saveGame();
@@ -63,8 +102,8 @@ private:
     void maybeStartClickEffect();
     void updateClickEffect();
     void stopClickEffect();
+    void triggerCritBurst(bool big);
     void rollGacha(GachaDialog *dialog);
-    void selectGachaCard(GachaDialog *dialog, int index);
     qint64 applyActiveCardBonus(qint64 value, GachaEffect effect) const;
     qint64 applyTimedBuffBonuses(qint64 value, TimedBuffEffect effect) const;
     bool isTimedBuffActive(TimedBuff buff) const;
@@ -72,7 +111,7 @@ private:
     void activateTimedBuff(TimedBuff buff, int durationSeconds);
     QString formatNumber(qint64 value) const;
     QString formatDuration(qint64 seconds) const;
-    QString formatUpgradeText(const QString &label, int cost) const;
+    QString formatUpgradeText(const QString &label, int ownedCount, int cost) const;
     QIcon tintedSvgIcon(const QString &path, const QColor &color, const QSize &size) const;
     QString tintedSvgDataUri(const QString &path, const QColor &color, const QSize &size) const;
     QString changelogHtml() const;
@@ -83,7 +122,8 @@ private:
     QElapsedTimer playTimer;
 
     QLabel *scoreLabel = nullptr;
-    QLabel *statsLabel = nullptr;
+    QLabel *clickStatsLabel = nullptr;
+    QLabel *incomeStatsLabel = nullptr;
     QLabel *archLabel = nullptr;
     QPushButton *caratButton = nullptr;
     QPushButton *changelogButton = nullptr;
@@ -96,6 +136,15 @@ private:
     QTimer *incomeTimer = nullptr;
     QTimer *clickEffectCheckTimer = nullptr;
     QTimer *clickEffectTimer = nullptr;
+    QTimer *changelogHighlightTimer = nullptr;
+    QTimer *statsBuffGlowTimer = nullptr;
+    QGraphicsDropShadowEffect *clickGlowEffect = nullptr;
+    QGraphicsDropShadowEffect *changelogGlowEffect = nullptr;
+    ParticleOverlay *particleOverlay = nullptr;
     int clickEffectFramesLeft = 0;
     int clickEffectHue = 0;
+    TextEffectState clickStatsBuffGlowState;
+    TextEffectState incomeStatsBuffGlowState;
+    int changelogHighlightHue = 0;
+    bool changelogSeenForVersion = true;
 };

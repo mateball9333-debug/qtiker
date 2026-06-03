@@ -21,8 +21,9 @@ The following files are based on Google Material Symbols:
 
 - `assets/ui/add.svg`
 - `assets/ui/changed.svg`
-- `assets/ui/inbox.svg`
+- `assets/ui/clock.svg`
 - `assets/ui/info.svg`
+- `assets/ui/release-notes.svg`
 - `assets/ui/remove.svg`
 - `assets/ui/settings.svg`
 - `assets/ui/statistics.svg`

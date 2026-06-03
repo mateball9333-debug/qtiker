@@ -3,6 +3,8 @@
 #include "appversion.h"
 #include "gacha_dialog.h"
 #include "game_rules.h"
+#include "particle_overlay.h"
+#include "release_notes.h"
 
 #include <QApplication>
 #include <QBuffer>
@@ -11,6 +13,7 @@
 #include <QDialog>
 #include <QFont>
 #include <QFrame>
+#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QIODevice>
 #include <QImage>
@@ -22,7 +25,9 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QRandomGenerator>
+#include <QResizeEvent>
 #include <QSettings>
+#include <QShortcut>
 #include <QStringList>
 #include <QSvgRenderer>
 #include <QTextBrowser>
@@ -35,7 +40,7 @@
 namespace {
 constexpr QSize TopIconSize(16, 16);
 constexpr QSize TopIconButtonSize(32, 28);
-constexpr QSize ChangelogButtonSize(86, 28);
+constexpr QSize ChangelogButtonSize(92, 28);
 constexpr int WindowMargin = 14;
 constexpr int WindowSpacing = 10;
 constexpr int DialogMargin = 12;
@@ -47,6 +52,7 @@ constexpr int ClickEffectChance = 10;
 constexpr int ClickEffectCheckMs = 10000;
 constexpr int ClickEffectFrameMs = 120;
 constexpr int ClickEffectFrames = 34;
+constexpr int ChangelogHighlightFrameMs = 140;
 constexpr QSize CaratIconSize(18, 18);
 
 const char *NumberSuffixes[] = {
@@ -78,8 +84,13 @@ constexpr auto TotalPlaySeconds = "totalPlaySeconds";
 constexpr auto TotalArchesEarned = "totalArchesEarned";
 constexpr auto ClickButtonRightClicks = "clickButtonRightClicks";
 constexpr auto SelectedCard = "selectedCard";
+constexpr auto SelectedCard2 = "selectedCard2";
+constexpr auto SecondCardSlotUnlocked = "secondCardSlotUnlocked";
+constexpr auto SecondCardPenaltyUpgraded = "secondCardPenaltyUpgraded";
 constexpr auto ClickCost = "clickCost";
 constexpr auto IncomeCost = "incomeCost";
+constexpr auto IncomeBuffEasterEgg = "incomeBuffEasterEgg";
+constexpr auto LastSeenChangelogVersion = "lastSeenChangelogVersion";
 constexpr auto BuffExpiresAtPrefix = "buffExpiresAt";
 constexpr auto LegacyClickPower = "clickPower";
 constexpr auto LegacyAutoPower = "autoPower";
@@ -89,60 +100,6 @@ constexpr auto LegacyTotalClicks = "totalClicks";
 constexpr auto LegacyTotalClickScoreEarned = "totalClickScoreEarned";
 }
 
-enum class ChangelogIcon {
-    Added,
-    Changed
-};
-
-struct ChangelogEntry {
-    ChangelogIcon icon;
-    const char *text;
-};
-
-struct ChangelogRelease {
-    const char *version;
-    const char *date;
-    const ChangelogEntry *entries;
-    qsizetype entryCount;
-};
-
-constexpr ChangelogEntry Changelog013[] = {
-    {ChangelogIcon::Added, "Added clicks show strange text sometimes."},
-    {ChangelogIcon::Added, "Added an info button.."},
-    {ChangelogIcon::Added, "Added Arch's and gacha cards."},
-    {ChangelogIcon::Added, "Added card inventory, selection, and stacked bonuses."},
-    {ChangelogIcon::Added, "Added Carat currency with a small top-bar vault."},
-    {ChangelogIcon::Added, "Added a Carat window with click burning and timed buffs."},
-    {ChangelogIcon::Added, "Added Legacy 0.1.2 mode for the old clean click loop."},
-    {ChangelogIcon::Added, "Added statistics for progress, time, and a few questionable gestures."},
-    {ChangelogIcon::Changed, "Improved number formatting and incremental progression."},
-    {ChangelogIcon::Changed, "Added small visual polish for click interactions."},
-    {ChangelogIcon::Changed, "Stats now tell the whole truth after cards quietly tip the scales."},
-};
-
-constexpr ChangelogEntry Changelog012[] = {
-    {ChangelogIcon::Changed, "Optimized PNG assets - binary ~1 MB lighter."},
-};
-
-constexpr ChangelogEntry Changelog011[] = {
-    {ChangelogIcon::Added, "Added compact in-game release notes."},
-    {ChangelogIcon::Added, "Added colored release note markers."},
-    {ChangelogIcon::Added, "Added a settings dialog."},
-    {ChangelogIcon::Added, "Added reset confirmation."},
-    {ChangelogIcon::Changed, "Moved reset into settings."},
-    {ChangelogIcon::Changed, "Updated 0.1.1 metadata."},
-};
-
-constexpr ChangelogEntry Changelog010[] = {
-    {ChangelogIcon::Changed, "Initial packaged version."},
-};
-
-constexpr ChangelogRelease ChangelogReleases[] = {
-    {"0.2.0", "2026-06-03", Changelog013, std::size(Changelog013)},
-    {"0.1.2", "2026-06-02", Changelog012, std::size(Changelog012)},
-    {"0.1.1", "2026-06-02", Changelog011, std::size(Changelog011)},
-    {"0.1.0", "2026-06-01", Changelog010, std::size(Changelog010)},
-};
 }
 
 Clicker::Clicker(QWidget *parent) : QWidget(parent) {
@@ -152,6 +109,10 @@ Clicker::Clicker(QWidget *parent) : QWidget(parent) {
     buildUi();
     startIncomeTimer();
     refreshUi();
+
+    auto *spaceShortcut = new QShortcut(QKeySequence(Qt::Key_Space), this);
+    spaceShortcut->setAutoRepeat(false);
+    connect(spaceShortcut, &QShortcut::activated, this, &Clicker::makeClick);
 }
 
 void Clicker::changeEvent(QEvent *event) {
@@ -170,6 +131,13 @@ void Clicker::closeEvent(QCloseEvent *event) {
     QWidget::closeEvent(event);
 }
 
+void Clicker::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    if (particleOverlay) {
+        particleOverlay->resize(event->size());
+    }
+}
+
 bool Clicker::eventFilter(QObject *watched, QEvent *event) {
     if (watched == clickButton && event->type() == QEvent::MouseButtonRelease) {
         auto *mouseEvent = static_cast<QMouseEvent *>(event);
@@ -184,11 +152,45 @@ bool Clicker::eventFilter(QObject *watched, QEvent *event) {
         }
     }
 
+    if (watched->property("role") == "tuxLogo"
+        && event->type() == QEvent::MouseButtonRelease) {
+        auto *win = new QWidget(nullptr, Qt::Dialog);
+        win->setAttribute(Qt::WA_DeleteOnClose);
+        win->setWindowTitle("Tux");
+        win->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
+
+        auto *layout = new QVBoxLayout(win);
+        layout->setContentsMargins(0, 0, 0, 0);
+
+        auto *img = new QLabel(win);
+        img->setAlignment(Qt::AlignCenter);
+        img->setPixmap(QPixmap(":/assets/qtiker.png"));
+        img->setCursor(Qt::ArrowCursor);
+
+        layout->addWidget(img);
+        win->show();
+        return true;
+    }
+
     return QWidget::eventFilter(watched, event);
 }
 
 void Clicker::makeClick() {
-    const auto earned = applyActiveCardBonus(game.perClick, GachaEffect::Click);
+    const auto cardEarned = applyActiveCardBonus(game.perClick, GachaEffect::Click);
+    const auto buffed = applyTimedBuffBonuses(cardEarned, TimedBuffEffect::Click);
+
+    const int roll = QRandomGenerator::global()->bounded(100);
+    qint64 earned;
+    if (roll < 1) {
+        earned = buffed * 5;
+        triggerCritBurst(true);
+    } else if (roll < 6) {
+        earned = buffed * 2;
+        triggerCritBurst(false);
+    } else {
+        earned = buffed;
+    }
+
     game.score += earned;
     game.totalClicks += 1;
     game.totalScoreEarned += earned;
@@ -231,7 +233,8 @@ void Clicker::addPassiveIncome() {
     }
 
     const auto cardEarned = applyActiveCardBonus(game.perSecond, GachaEffect::Income);
-    const auto earned = applyTimedBuffBonuses(cardEarned, TimedBuffEffect::Income);
+    const auto buffed = applyTimedBuffBonuses(cardEarned, TimedBuffEffect::Income);
+    const auto earned = game.incomeBuffEasterEgg ? applyMultiplierRoundedUp(buffed, 11, 10) : buffed;
     game.score += earned;
     game.totalScoreEarned += earned;
     addArchProgress(earned);
@@ -337,6 +340,98 @@ void Clicker::showSettings() {
     modeLayout->addStretch();
     modeLayout->addWidget(legacyButton);
 
+    QSettings eeSettings("qtiker", "qtiker");
+    const bool easterEggFound = eeSettings.value("easterEggFound", false).toBool();
+
+    QFrame *buffBox = nullptr;
+    if (easterEggFound) {
+        buffBox = new QFrame(dialog);
+        buffBox->setFrameShape(QFrame::StyledPanel);
+
+        auto *buffLayout = new QHBoxLayout(buffBox);
+        buffLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+        buffLayout->setSpacing(DialogSpacing);
+
+        auto *buffText = new QLabel("Income +10% buff", buffBox);
+        setFont(buffText, buffText->font().pointSize(), true);
+
+        auto *buffButton = new QPushButton(
+            game.incomeBuffEasterEgg ? "ON" : "OFF", buffBox);
+        connect(buffButton, &QPushButton::clicked, this,
+                [this, buffButton]() {
+                    game.incomeBuffEasterEgg = !game.incomeBuffEasterEgg;
+                    buffButton->setText(game.incomeBuffEasterEgg ? "ON" : "OFF");
+                    saveGame();
+                    refreshUi();
+                });
+
+        buffLayout->addWidget(buffText);
+        buffLayout->addStretch();
+        buffLayout->addWidget(buffButton);
+    }
+
+    auto *justBox = new QFrame(dialog);
+    justBox->setFrameShape(QFrame::StyledPanel);
+
+    auto *justLayout = new QHBoxLayout(justBox);
+    justLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    justLayout->setSpacing(DialogSpacing);
+
+    auto *justText = new QLabel("Just text", justBox);
+    setFont(justText, justText->font().pointSize(), true);
+
+    auto *justButton = new QPushButton("Just button", justBox);
+    auto *justGlowEffect = setButtonGlow(justButton, nullptr, QColor::fromHsv(0, 210, 245));
+    auto *justTextState = new TextEffectState();
+    auto *justMode = new int(0);
+    connect(justBox, &QObject::destroyed, this, [justTextState, justMode]() {
+        delete justTextState;
+        delete justMode;
+    });
+
+    auto *justButtonTimer = new QTimer(justButton);
+    justButtonTimer->setInterval(ChangelogHighlightFrameMs);
+    connect(justButtonTimer, &QTimer::timeout, this, [this, justButton, justText, justTextState, justGlowEffect, justMode, justButtonHue = 18]() mutable {
+        const auto color = QColor::fromHsv(justButtonHue, 210, 245);
+        if (*justMode == 0) {
+            justGlowEffect->setColor(color);
+        } else if (*justMode == 1) {
+            applyTextEffect(justText, *justTextState, TextEffectMode::RainbowGlow);
+        } else if (*justMode == 2) {
+            applyTextEffect(justText, *justTextState, TextEffectMode::RainbowFill);
+        }
+        justButtonHue = (justButtonHue + 18) % 360;
+    });
+    justButtonTimer->start();
+
+    connect(justButton, &QPushButton::clicked, this, [this, justButton, justText, justTextState, justGlowEffect, justMode]() {
+        *justMode = QRandomGenerator::global()->bounded(5);
+
+        clearTextEffect(justText, *justTextState);
+        justGlowEffect->setEnabled(false);
+
+        if (*justMode == 0) {
+            justButton->setText("Button glow");
+            justGlowEffect->setColor(QColor::fromHsv(0, 210, 245));
+            justGlowEffect->setEnabled(true);
+        } else if (*justMode == 1) {
+            justButton->setText("Text glow");
+            applyTextEffect(justText, *justTextState, TextEffectMode::RainbowGlow);
+        } else if (*justMode == 2) {
+            justButton->setText("Text rainbow");
+            applyTextEffect(justText, *justTextState, TextEffectMode::RainbowFill);
+        } else if (*justMode == 3) {
+            justButton->setText("Text fill");
+            applyTextEffect(justText, *justTextState, TextEffectMode::SolidFill, QColor("#2e7d32"));
+        } else {
+            justButton->setText("Just button");
+        }
+    });
+
+    justLayout->addWidget(justText);
+    justLayout->addStretch();
+    justLayout->addWidget(justButton);
+
     auto *closeButton = new QPushButton("Close", dialog);
     connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
 
@@ -344,8 +439,14 @@ void Clicker::showSettings() {
     layout->addWidget(resetBox);
     layout->addWidget(statisticsBox);
     layout->addWidget(modeBox);
+    if (buffBox) {
+        layout->addWidget(buffBox);
+    }
+    layout->addWidget(justBox);
     layout->addStretch();
     layout->addWidget(closeButton);
+
+    dialog->show();
 
     dialog->show();
 }
@@ -371,6 +472,8 @@ void Clicker::buttonChange() {
 }
 
 void Clicker::showChangelog() {
+    markChangelogSeen();
+
     auto *dialog = new QDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setWindowTitle("Qtiker Release Notes");
@@ -431,6 +534,9 @@ void Clicker::showInfo() {
     auto *logo = new QLabel(dialog);
     logo->setAlignment(Qt::AlignCenter);
     logo->setPixmap(QPixmap(":/assets/qtiker-64.png"));
+    logo->setCursor(Qt::PointingHandCursor);
+    logo->installEventFilter(this);
+    logo->setProperty("role", "tuxLogo");
 
     auto *title = new QLabel(QString("Qtiker v%1").arg(AppVersion), dialog);
     title->setAlignment(Qt::AlignCenter);
@@ -470,12 +576,21 @@ void Clicker::showInfo() {
 void Clicker::showGacha() {
     auto *dialog = new GachaDialog(this);
     dialog->setArchCount(game.arches);
-    dialog->setInventory(game.cardCounts, game.selectedCard);
+    dialog->setSecondCardSlotEnabled(game.secondCardSlotUnlocked);
+    dialog->setSecondCardPenaltyUpgraded(game.secondCardPenaltyUpgraded);
+    dialog->setInventory(game.cardCounts, game.selectedCard, game.selectedCard2);
     connect(dialog, &GachaDialog::rollRequested, this, [this, dialog]() {
         rollGacha(dialog);
     });
     connect(dialog, &GachaDialog::cardSelected, this, [this, dialog](int index) {
         selectGachaCard(dialog, index);
+    });
+    connect(dialog, &GachaDialog::cardSelectedForSlot2, this, [this, dialog](int index) {
+        selectGachaCard2(dialog, index);
+    });
+    connect(dialog, &GachaDialog::slotChanged, this, [this, dialog](int) {
+        dialog->setInventory(game.cardCounts, game.selectedCard, game.selectedCard2);
+        dialog->setSecondCardPenaltyUpgraded(game.secondCardPenaltyUpgraded);
     });
     dialog->show();
 }
@@ -485,7 +600,7 @@ void Clicker::showCarat() {
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setWindowTitle("Carat");
     dialog->setWindowIcon(QIcon(":/assets/ui/carat.png"));
-    dialog->resize(340, 230);
+    dialog->resize(340, 280);
 
     auto *layout = new QVBoxLayout(dialog);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
@@ -543,7 +658,10 @@ void Clicker::showCarat() {
     auto *closeButton = new QPushButton("Close", dialog);
     connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
 
-    const auto updateDialog = [this, caratBalanceLabel, clickBalanceLabel, burnButton, buffStatusLabels, buyBuffButtons]() {
+    auto *slot2BuyButton = new QPushButton(dialog);
+    auto *penaltyUpgradeButton = new QPushButton(dialog);
+
+    const auto updateDialog = [this, caratBalanceLabel, clickBalanceLabel, burnButton, buffStatusLabels, buyBuffButtons, slot2BuyButton, penaltyUpgradeButton]() {
         caratBalanceLabel->setText(QString("Carat %1").arg(formatNumber(game.carats)));
         clickBalanceLabel->setText(QString("%1 clicks").arg(formatNumber(game.score)));
 
@@ -565,6 +683,29 @@ void Clicker::showCarat() {
                                                .arg(formatNumber(rule.caratCost)));
             buyBuffButtons[index]->setEnabled(game.carats >= rule.caratCost);
         }
+
+        if (game.secondCardSlotUnlocked) {
+            slot2BuyButton->setText("Second card slot: unlocked");
+            slot2BuyButton->setEnabled(false);
+        } else {
+            slot2BuyButton->setText(QString("Unlock second card slot  %1 Carat")
+                                        .arg(formatNumber(SecondCardSlotCost)));
+            slot2BuyButton->setEnabled(game.carats >= SecondCardSlotCost);
+        }
+
+        if (game.secondCardSlotUnlocked) {
+            if (game.secondCardPenaltyUpgraded) {
+                penaltyUpgradeButton->setText("Penalty reduced to 33%");
+                penaltyUpgradeButton->setEnabled(false);
+            } else {
+                penaltyUpgradeButton->setText(QString("Reduce penalty 55% → 33%  %1 Carat")
+                                                  .arg(formatNumber(PenaltyUpgradeCost)));
+                penaltyUpgradeButton->setEnabled(game.carats >= PenaltyUpgradeCost);
+            }
+            penaltyUpgradeButton->setVisible(true);
+        } else {
+            penaltyUpgradeButton->setVisible(false);
+        }
     };
 
     connect(burnButton, &QPushButton::clicked, this, [this, updateDialog]() {
@@ -574,6 +715,30 @@ void Clicker::showCarat() {
 
         game.score -= CaratBurnCost;
         game.carats += CaratBurnReward;
+        saveGame();
+        refreshUi();
+        updateDialog();
+    });
+
+    connect(slot2BuyButton, &QPushButton::clicked, this, [this, updateDialog]() {
+        if (game.carats < SecondCardSlotCost || game.secondCardSlotUnlocked) {
+            return;
+        }
+
+        game.carats -= SecondCardSlotCost;
+        game.secondCardSlotUnlocked = true;
+        saveGame();
+        refreshUi();
+        updateDialog();
+    });
+
+    connect(penaltyUpgradeButton, &QPushButton::clicked, this, [this, updateDialog]() {
+        if (game.carats < PenaltyUpgradeCost || game.secondCardPenaltyUpgraded) {
+            return;
+        }
+
+        game.carats -= PenaltyUpgradeCost;
+        game.secondCardPenaltyUpgraded = true;
         saveGame();
         refreshUi();
         updateDialog();
@@ -597,6 +762,8 @@ void Clicker::showCarat() {
     layout->addWidget(balanceBox);
     layout->addWidget(burnButton);
     layout->addWidget(buffBox);
+    layout->addWidget(slot2BuyButton);
+    layout->addWidget(penaltyUpgradeButton);
     layout->addStretch();
     layout->addWidget(closeButton);
 
@@ -713,7 +880,7 @@ void Clicker::buildUi() {
     mainLayout->setContentsMargins(WindowMargin, WindowMargin, WindowMargin, WindowMargin);
     mainLayout->setSpacing(WindowSpacing);
 
-    changelogButton = new QPushButton(QString("v%1").arg(AppVersion), this);
+    changelogButton = new QPushButton(QString("  v%1").arg(AppVersion), this);
     changelogButton->setIconSize(TopIconSize);
     changelogButton->setToolTip("Release notes");
     changelogButton->setFixedSize(ChangelogButtonSize);
@@ -748,9 +915,27 @@ void Clicker::buildUi() {
     scoreLabel->setAlignment(Qt::AlignCenter);
     setFont(scoreLabel, 30, true);
 
-    statsLabel = new QLabel(this);
-    statsLabel->setAlignment(Qt::AlignCenter);
-    setFont(statsLabel, statsLabel->font().pointSize(), true);
+    auto *statsLayout = new QHBoxLayout();
+    statsLayout->setContentsMargins(0, 0, 0, 0);
+    statsLayout->setSpacing(0);
+
+    clickStatsLabel = new QLabel(this);
+    clickStatsLabel->setAlignment(Qt::AlignCenter);
+    setFont(clickStatsLabel, clickStatsLabel->font().pointSize(), true);
+
+    auto *separator = new QLabel(" · ", this);
+    separator->setAlignment(Qt::AlignCenter);
+    setFont(separator, separator->font().pointSize(), true);
+
+    incomeStatsLabel = new QLabel(this);
+    incomeStatsLabel->setAlignment(Qt::AlignCenter);
+    setFont(incomeStatsLabel, incomeStatsLabel->font().pointSize(), true);
+
+    statsLayout->addStretch();
+    statsLayout->addWidget(clickStatsLabel);
+    statsLayout->addWidget(separator);
+    statsLayout->addWidget(incomeStatsLabel);
+    statsLayout->addStretch();
 
     archLabel = new QLabel(this);
     archLabel->setAlignment(Qt::AlignCenter);
@@ -759,10 +944,13 @@ void Clicker::buildUi() {
     setFont(archLabel, archLabel->font().pointSize(), true);
 
     clickButton = new QPushButton("Click", this);
+    clickButton->setFocusPolicy(Qt::NoFocus);
     clickButton->setMinimumHeight(76);
     setFont(clickButton, 18, true);
     clickButton->installEventFilter(this);
     connect(clickButton, &QPushButton::clicked, this, &Clicker::makeClick);
+
+    particleOverlay = new ParticleOverlay(this);
 
     gachaButton = new QPushButton("Gacha", this);
     gachaButton->setMinimumHeight(32);
@@ -772,7 +960,7 @@ void Clicker::buildUi() {
 
     mainLayout->addLayout(topLayout);
     mainLayout->addWidget(scoreLabel);
-    mainLayout->addWidget(statsLabel);
+    mainLayout->addLayout(statsLayout);
     mainLayout->addWidget(archLabel);
     mainLayout->addWidget(clickButton, 1);
     mainLayout->addWidget(gachaButton);
@@ -825,10 +1013,19 @@ void Clicker::startIncomeTimer() {
     clickEffectTimer = new QTimer(this);
     clickEffectTimer->setInterval(ClickEffectFrameMs);
     connect(clickEffectTimer, &QTimer::timeout, this, &Clicker::updateClickEffect);
+
+    changelogHighlightTimer = new QTimer(this);
+    changelogHighlightTimer->setInterval(ChangelogHighlightFrameMs);
+    connect(changelogHighlightTimer, &QTimer::timeout, this, &Clicker::updateChangelogHighlight);
+    startChangelogHighlightIfNeeded();
+
+    statsBuffGlowTimer = new QTimer(this);
+    statsBuffGlowTimer->setInterval(ChangelogHighlightFrameMs);
+    connect(statsBuffGlowTimer, &QTimer::timeout, this, &Clicker::updateStatsBuffGlow);
 }
 
 void Clicker::applyThemeIcons() {
-    setThemeIcon(changelogButton, ":/assets/ui/inbox.svg");
+    setThemeIcon(changelogButton, ":/assets/ui/release-notes.svg");
     setThemeIcon(settingsButton, ":/assets/ui/settings.svg");
     setThemeIcon(infoButton, ":/assets/ui/info.svg");
 }
@@ -842,20 +1039,229 @@ void Clicker::setThemeIcon(QPushButton *button, const QString &path) {
     button->setIcon(tintedSvgIcon(path, iconColor, TopIconSize));
 }
 
+QGraphicsDropShadowEffect *Clicker::setButtonGlow(
+    QPushButton *button,
+    QGraphicsDropShadowEffect *effect,
+    const QColor &color
+) {
+    if (button == nullptr) {
+        return nullptr;
+    }
+
+    if (effect == nullptr) {
+        effect = new QGraphicsDropShadowEffect(button);
+        effect->setBlurRadius(12);
+        effect->setOffset(0, 0);
+    }
+    if (button->graphicsEffect() != effect) {
+        button->setGraphicsEffect(effect);
+    }
+
+    effect->setColor(color);
+    effect->setEnabled(true);
+    return effect;
+}
+
+void Clicker::clearButtonGlow(QPushButton *button, QGraphicsDropShadowEffect *effect) {
+    if (button != nullptr && button->graphicsEffect() == effect) {
+        button->setGraphicsEffect(nullptr);
+    }
+}
+
+void Clicker::applyTextEffect(
+    QLabel *label,
+    TextEffectState &state,
+    TextEffectMode mode,
+    const QColor &fillColor
+) {
+    if (label == nullptr) {
+        return;
+    }
+
+    if (!state.hasOriginalTextColor) {
+        state.originalTextColor = label->palette().color(QPalette::WindowText);
+        state.hasOriginalTextColor = true;
+    }
+
+    const bool useRainbow = mode == TextEffectMode::RainbowGlow || mode == TextEffectMode::RainbowFill;
+    const auto color = useRainbow ? QColor::fromHsv(state.hue, 210, 245) : fillColor;
+
+    if (mode == TextEffectMode::RainbowGlow) {
+        auto palette = label->palette();
+        palette.setColor(QPalette::WindowText, state.originalTextColor);
+        label->setPalette(palette);
+
+        if (state.glowEffect == nullptr) {
+            state.glowEffect = new QGraphicsDropShadowEffect(label);
+            state.glowEffect->setBlurRadius(12);
+            state.glowEffect->setOffset(0, 0);
+            label->setGraphicsEffect(state.glowEffect);
+        }
+        state.glowEffect->setColor(color);
+        state.glowEffect->setEnabled(true);
+    } else {
+        if (label->graphicsEffect() == state.glowEffect) {
+            label->setGraphicsEffect(nullptr);
+        }
+        state.glowEffect = nullptr;
+
+        auto palette = label->palette();
+        palette.setColor(QPalette::WindowText, color.isValid() ? color : state.originalTextColor);
+        label->setPalette(palette);
+    }
+
+    if (useRainbow) {
+        state.hue = (state.hue + 18) % 360;
+    }
+}
+
+void Clicker::clearTextEffect(QLabel *label, TextEffectState &state) {
+    if (label == nullptr) {
+        return;
+    }
+
+    if (label->graphicsEffect() == state.glowEffect) {
+        label->setGraphicsEffect(nullptr);
+    }
+    state.glowEffect = nullptr;
+
+    if (state.hasOriginalTextColor) {
+        auto palette = label->palette();
+        palette.setColor(QPalette::WindowText, state.originalTextColor);
+        label->setPalette(palette);
+    }
+}
+
+QColor Clicker::activeCardColorForEffect(GachaEffect effect) const {
+    const auto colorForCard = [this, effect](int index) -> QColor {
+        if (index < 0 || index >= GachaCardCount || game.cardCounts[index] <= 0) {
+            return {};
+        }
+
+        const auto card = debugGachaCardAt(index);
+        return card.effect == effect ? card.color : QColor();
+    };
+
+    auto color = colorForCard(game.selectedCard);
+    if (color.isValid()) {
+        return color;
+    }
+
+    if (game.secondCardSlotUnlocked) {
+        color = colorForCard(game.selectedCard2);
+    }
+
+    return color;
+}
+
+void Clicker::applyStatsTextColor(QLabel *label, TextEffectState &state, const QColor &accentColor) {
+    if (label == nullptr) {
+        return;
+    }
+
+    const auto textColor = accentColor.isValid()
+        ? accentColor
+        : QApplication::palette(label).color(QPalette::WindowText);
+
+    state.originalTextColor = textColor;
+    state.hasOriginalTextColor = true;
+
+    auto palette = label->palette();
+    palette.setColor(QPalette::WindowText, textColor);
+    label->setPalette(palette);
+}
+
+void Clicker::startChangelogHighlightIfNeeded() {
+    if (changelogSeenForVersion || changelogButton == nullptr || changelogHighlightTimer == nullptr) {
+        return;
+    }
+
+    changelogHighlightHue = 0;
+    changelogHighlightTimer->start();
+    updateChangelogHighlight();
+}
+
+void Clicker::updateChangelogHighlight() {
+    if (changelogButton == nullptr) {
+        return;
+    }
+
+    const auto color = QColor::fromHsv(changelogHighlightHue, 210, 245);
+    changelogGlowEffect = setButtonGlow(changelogButton, changelogGlowEffect, color);
+    changelogHighlightHue = (changelogHighlightHue + 18) % 360;
+}
+
+void Clicker::stopChangelogHighlight() {
+    if (changelogHighlightTimer != nullptr) {
+        changelogHighlightTimer->stop();
+    }
+    clearButtonGlow(changelogButton, changelogGlowEffect);
+    changelogGlowEffect = nullptr;
+}
+
+void Clicker::updateStatsBuffGlow() {
+    const bool clickActive = isTimedBuffActive(TimedBuff::ClickGain);
+    const bool incomeActive = isTimedBuffActive(TimedBuff::IncomeGain);
+
+    applyStatsTextColor(clickStatsLabel, clickStatsBuffGlowState, activeCardColorForEffect(GachaEffect::Click));
+    applyStatsTextColor(incomeStatsLabel, incomeStatsBuffGlowState, activeCardColorForEffect(GachaEffect::Income));
+
+    if (clickActive) {
+        applyTextEffect(clickStatsLabel, clickStatsBuffGlowState, TextEffectMode::RainbowGlow);
+    } else {
+        clearTextEffect(clickStatsLabel, clickStatsBuffGlowState);
+    }
+
+    if (incomeActive) {
+        applyTextEffect(incomeStatsLabel, incomeStatsBuffGlowState, TextEffectMode::RainbowGlow);
+    } else {
+        clearTextEffect(incomeStatsLabel, incomeStatsBuffGlowState);
+    }
+
+    if (!clickActive && !incomeActive) {
+        statsBuffGlowTimer->stop();
+    }
+}
+
+void Clicker::markChangelogSeen() {
+    if (changelogSeenForVersion) {
+        return;
+    }
+
+    changelogSeenForVersion = true;
+    QSettings settings("qtiker", "qtiker");
+    settings.setValue(SettingsKeys::LastSeenChangelogVersion, AppVersion);
+    stopChangelogHighlight();
+}
+
 void Clicker::refreshUi() {
     const auto displayedClick = applyTimedBuffBonuses(
         applyActiveCardBonus(game.perClick, GachaEffect::Click),
         TimedBuffEffect::Click
     );
-    const auto displayedIncome = applyTimedBuffBonuses(
+    auto displayedIncome = applyTimedBuffBonuses(
         applyActiveCardBonus(game.perSecond, GachaEffect::Income),
         TimedBuffEffect::Income
     );
+    if (game.incomeBuffEasterEgg) {
+        displayedIncome = applyMultiplierRoundedUp(displayedIncome, 11, 10);
+    }
 
     scoreLabel->setText(formatNumber(game.score));
-    statsLabel->setText(QString("Click +%1 · Income +%2/sec")
-                            .arg(formatNumber(displayedClick))
-                            .arg(formatNumber(displayedIncome)));
+    clickStatsLabel->setText(QString("Click +%1").arg(formatNumber(displayedClick)));
+    incomeStatsLabel->setText(QString("Income +%1/sec").arg(formatNumber(displayedIncome)));
+    applyStatsTextColor(clickStatsLabel, clickStatsBuffGlowState, activeCardColorForEffect(GachaEffect::Click));
+    applyStatsTextColor(incomeStatsLabel, incomeStatsBuffGlowState, activeCardColorForEffect(GachaEffect::Income));
+
+    const bool anyBuffActive = isTimedBuffActive(TimedBuff::IncomeGain)
+        || isTimedBuffActive(TimedBuff::ClickGain);
+    if (anyBuffActive && !statsBuffGlowTimer->isActive()) {
+        statsBuffGlowTimer->start();
+    } else if (!anyBuffActive && statsBuffGlowTimer->isActive()) {
+        statsBuffGlowTimer->stop();
+        clearTextEffect(clickStatsLabel, clickStatsBuffGlowState);
+        clearTextEffect(incomeStatsLabel, incomeStatsBuffGlowState);
+    }
 
     archLabel->setText(QString("Arch's %1").arg(formatNumber(game.arches)));
     const auto progressToNextArch = game.nextArchAt > game.archProgress
@@ -867,8 +1273,10 @@ void Clicker::refreshUi() {
                                .arg(formatNumber(game.nextArchAt)));
     caratButton->setText(QString("- %1").arg(formatNumber(game.carats)));
 
-    clickUpgradeButton->setText(formatUpgradeText("Click +1", game.clickCost));
-    incomeUpgradeButton->setText(formatUpgradeText("Income +1/sec", game.incomeCost));
+    const int clickUpgradesBought = game.perClick > 1 ? game.perClick - 1 : 0;
+    const int incomeUpgradesBought = game.perSecond > 0 ? game.perSecond : 0;
+    clickUpgradeButton->setText(formatUpgradeText("Click +1", clickUpgradesBought, game.clickCost));
+    incomeUpgradeButton->setText(formatUpgradeText("Income +1/sec", incomeUpgradesBought, game.incomeCost));
     gachaButton->setText(QString("Gacha  %1 Arch").arg(formatNumber(1)));
 
     clickUpgradeButton->setEnabled(game.score >= game.clickCost);
@@ -911,6 +1319,9 @@ void Clicker::loadGame() {
         ).toLongLong();
     }
     game.selectedCard = settings.value(SettingsKeys::SelectedCard, game.selectedCard).toInt();
+    game.selectedCard2 = settings.value(SettingsKeys::SelectedCard2, game.selectedCard2).toInt();
+    game.secondCardSlotUnlocked = settings.value(SettingsKeys::SecondCardSlotUnlocked, game.secondCardSlotUnlocked).toBool();
+    game.secondCardPenaltyUpgraded = settings.value(SettingsKeys::SecondCardPenaltyUpgraded, game.secondCardPenaltyUpgraded).toBool();
     for (int index = 0; index < GachaCardCount; ++index) {
         game.cardCounts[index] = settings.value(QString("card%1").arg(index), game.cardCounts[index]).toInt();
     }
@@ -921,6 +1332,16 @@ void Clicker::loadGame() {
         game.selectedCard = -1;
     }
 
+    if (game.selectedCard2 < 0
+        || game.selectedCard2 >= GachaCardCount
+        || game.cardCounts[game.selectedCard2] <= 0) {
+        game.selectedCard2 = -1;
+    }
+
+    if (!game.secondCardSlotUnlocked) {
+        game.selectedCard2 = -1;
+    }
+
     game.clickCost = settings.value(
         SettingsKeys::ClickCost,
         settings.value(SettingsKeys::LegacyClickUpgradeCost, game.clickCost)
@@ -929,6 +1350,13 @@ void Clicker::loadGame() {
         SettingsKeys::IncomeCost,
         settings.value(SettingsKeys::LegacyAutoUpgradeCost, game.incomeCost)
     ).toInt();
+    game.incomeBuffEasterEgg = settings.value(
+        SettingsKeys::IncomeBuffEasterEgg, game.incomeBuffEasterEgg
+    ).toBool();
+    changelogSeenForVersion = settings.value(
+        SettingsKeys::LastSeenChangelogVersion,
+        QString()
+    ).toString() == AppVersion;
 }
 
 void Clicker::saveGame() {
@@ -955,11 +1383,15 @@ void Clicker::saveGame() {
         );
     }
     settings.setValue(SettingsKeys::SelectedCard, game.selectedCard);
+    settings.setValue(SettingsKeys::SelectedCard2, game.selectedCard2);
+    settings.setValue(SettingsKeys::SecondCardSlotUnlocked, game.secondCardSlotUnlocked);
+    settings.setValue(SettingsKeys::SecondCardPenaltyUpgraded, game.secondCardPenaltyUpgraded);
     for (int index = 0; index < GachaCardCount; ++index) {
         settings.setValue(QString("card%1").arg(index), game.cardCounts[index]);
     }
     settings.setValue(SettingsKeys::ClickCost, game.clickCost);
     settings.setValue(SettingsKeys::IncomeCost, game.incomeCost);
+    settings.setValue(SettingsKeys::IncomeBuffEasterEgg, game.incomeBuffEasterEgg);
 }
 
 qint64 Clicker::currentTotalPlaySeconds() const {
@@ -1005,14 +1437,7 @@ void Clicker::updateClickEffect() {
     }
 
     const auto color = QColor::fromHsv(clickEffectHue, 180, 230);
-    clickButton->setStyleSheet(
-        QString(
-            "QPushButton {"
-            "  border: 2px solid rgb(%1, %2, %3);"
-            "  border-radius: 6px;"
-            "}"
-        ).arg(color.red()).arg(color.green()).arg(color.blue())
-    );
+    clickGlowEffect = setButtonGlow(clickButton, clickGlowEffect, color);
     clickEffectHue = (clickEffectHue + 18) % 360;
     clickEffectFramesLeft -= 1;
 }
@@ -1020,7 +1445,19 @@ void Clicker::updateClickEffect() {
 void Clicker::stopClickEffect() {
     clickEffectTimer->stop();
     clickEffectFramesLeft = 0;
-    clickButton->setStyleSheet(QString());
+    clearButtonGlow(clickButton, clickGlowEffect);
+    clickGlowEffect = nullptr;
+}
+
+void Clicker::triggerCritBurst(bool big) {
+    if (!particleOverlay) return;
+    particleOverlay->resize(size());
+    const QRect btnRect = clickButton->geometry();
+    const QPointF center(
+        btnRect.x() + btnRect.width() / 2.0,
+        btnRect.y() + btnRect.height() / 2.0
+    );
+    particleOverlay->burstAt(center, big ? 60 : 30, big);
 }
 
 void Clicker::rollGacha(GachaDialog *dialog) {
@@ -1046,10 +1483,12 @@ void Clicker::rollGacha(GachaDialog *dialog) {
     game.cardCounts[index] += 1;
     if (game.selectedCard == -1) {
         game.selectedCard = index;
+    } else if (game.secondCardSlotUnlocked && game.selectedCard2 == -1 && index != game.selectedCard) {
+        game.selectedCard2 = index;
     }
 
     dialog->setArchCount(game.arches);
-    dialog->setInventory(game.cardCounts, game.selectedCard);
+    dialog->setInventory(game.cardCounts, game.selectedCard, game.selectedCard2);
     dialog->showCard(debugGachaCardAt(index), game.cardCounts[index]);
 
     saveGame();
@@ -1062,28 +1501,69 @@ void Clicker::selectGachaCard(GachaDialog *dialog, int index) {
         return;
     }
 
-    game.selectedCard = index;
-    dialog->setInventory(game.cardCounts, game.selectedCard);
-    dialog->showMessage(QString("Selected %1.").arg(debugGachaCardAt(index).name));
+    if (index == game.selectedCard) {
+        game.selectedCard = -1;
+        dialog->showMessage("Deselected slot 1.");
+    } else if (index == game.selectedCard2) {
+        std::swap(game.selectedCard, game.selectedCard2);
+        dialog->showMessage("Swapped slots.");
+    } else {
+        game.selectedCard = index;
+        dialog->showMessage(QString("Selected %1.").arg(debugGachaCardAt(index).name));
+    }
+
+    dialog->setInventory(game.cardCounts, game.selectedCard, game.selectedCard2);
     saveGame();
+    refreshUi();
+}
+
+void Clicker::selectGachaCard2(GachaDialog *dialog, int index) {
+    if (index < 0 || index >= GachaCardCount || game.cardCounts[index] <= 0) {
+        dialog->showMessage("You do not own this card.");
+        return;
+    }
+
+    if (index == game.selectedCard2) {
+        game.selectedCard2 = -1;
+        dialog->showMessage("Deselected slot 2.");
+    } else if (index == game.selectedCard) {
+        std::swap(game.selectedCard, game.selectedCard2);
+        dialog->showMessage("Swapped slots.");
+    } else {
+        game.selectedCard2 = index;
+        dialog->showMessage(QString("Selected %1 for slot 2.").arg(debugGachaCardAt(index).name));
+    }
+
+    dialog->setInventory(game.cardCounts, game.selectedCard, game.selectedCard2);
+    saveGame();
+    refreshUi();
 }
 
 qint64 Clicker::applyActiveCardBonus(qint64 value, GachaEffect effect) const {
-    if (game.selectedCard < 0 || game.selectedCard >= GachaCardCount) {
-        return value;
+    if (game.selectedCard >= 0 && game.selectedCard < GachaCardCount) {
+        const auto card = debugGachaCardAt(game.selectedCard);
+        if (card.effect == effect) {
+            value = applyStackedMultiplier(
+                value, card.multiplierNumerator, card.multiplierDenominator,
+                game.cardCounts[game.selectedCard]
+            );
+        }
     }
 
-    const auto card = debugGachaCardAt(game.selectedCard);
-    if (card.effect != effect) {
-        return value;
+    if (game.secondCardSlotUnlocked && game.selectedCard2 >= 0 && game.selectedCard2 < GachaCardCount) {
+        const auto card = debugGachaCardAt(game.selectedCard2);
+        if (card.effect == effect) {
+            const int extraTenths = effectiveCardCopies(game.cardCounts[game.selectedCard2]) - 1;
+            const int stackedNum = card.multiplierNumerator * 10 + extraTenths * card.multiplierDenominator;
+            const int stackedDen = card.multiplierDenominator * 10;
+            const int penalty = game.secondCardPenaltyUpgraded ? 33 : 55;
+            const int penNum = stackedDen * penalty + stackedNum * (100 - penalty);
+            const int penDen = stackedDen * 100;
+            value = applyMultiplier(value, penNum, penDen);
+        }
     }
 
-    return applyStackedMultiplier(
-        value,
-        card.multiplierNumerator,
-        card.multiplierDenominator,
-        game.cardCounts[game.selectedCard]
-    );
+    return value;
 }
 
 qint64 Clicker::applyTimedBuffBonuses(qint64 value, TimedBuffEffect effect) const {
@@ -1167,8 +1647,9 @@ QString Clicker::formatDuration(qint64 seconds) const {
     return QString("%1s").arg(seconds);
 }
 
-QString Clicker::formatUpgradeText(const QString &label, int cost) const {
-    return QString("%1  %2").arg(label, formatNumber(cost));
+QString Clicker::formatUpgradeText(const QString &label, int ownedCount, int cost) const {
+    return QString("x%1  %2  %3")
+        .arg(formatNumber(ownedCount), label, formatNumber(cost));
 }
 
 QIcon Clicker::tintedSvgIcon(const QString &path, const QColor &color, const QSize &size) const {
