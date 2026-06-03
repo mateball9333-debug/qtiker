@@ -11,8 +11,8 @@ cmake-build-*/
 # Local package outputs
 *.pkg.tar.*
 *.src.tar.*
-src/
-pkg/
+/src/.cache/
+/pkg/
 packaging/aur/*/src/
 packaging/aur/*/pkg/
 packaging/aur/*/*/

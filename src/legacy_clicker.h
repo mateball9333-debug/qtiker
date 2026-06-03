@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gamestate.h"
+#include "legacy_gamestate.h"
 
 #include <QColor>
 #include <QIcon>
@@ -16,11 +16,14 @@ class QObject;
 class QPushButton;
 class QTimer;
 
-class Clicker : public QWidget {
+class LegacyClicker : public QWidget {
     Q_OBJECT
 
 public:
-    explicit Clicker(QWidget *parent = nullptr);
+    explicit LegacyClicker(QWidget *parent = nullptr);
+
+signals:
+    void switchToModernRequested();
 
 protected:
     void changeEvent(QEvent *event) override;
@@ -38,7 +41,6 @@ private slots:
 
 private:
     void showTux();
-    void setupWindow();
     void buildUi();
     QFrame *createUpgradesBox();
     void startIncomeTimer();
@@ -46,13 +48,12 @@ private:
     void refreshUi();
     void loadGame();
     void saveGame() const;
-    int nextCost(int currentCost, int extra) const;
     QIcon tintedSvgIcon(const QString &path, const QColor &color, const QSize &size) const;
     QString tintedSvgDataUri(const QString &path, const QColor &color, const QSize &size) const;
     QString changelogHtml() const;
     void setFont(QWidget *widget, int pointSize, bool bold);
 
-    GameState game;
+    LegacyGameState game;
 
     QLabel *scoreLabel = nullptr;
     QLabel *statsLabel = nullptr;

@@ -20,7 +20,20 @@
   </categories>
   <url type="homepage">https://github.com/mateball9333-debug/qtiker</url>
   <releases>
-    <release version="@PROJECT_VERSION@" date="2026-06-02">
+    <release version="@PROJECT_VERSION@" date="2026-06-03">
+      <description>
+        <p>Added occasional random Click button labels.</p>
+        <p>Added an About dialog with app info and licenses.</p>
+        <p>Added Arch's, gacha cards, card inventory, and selectable card bonuses.</p>
+        <p>Added Carat currency, click burning, and timed buffs.</p>
+        <p>Added Legacy 0.1.2 mode with separate saved progress.</p>
+        <p>Added a statistics dialog.</p>
+        <p>Improved number formatting and incremental progression.</p>
+        <p>Stats now show effective card-adjusted gains.</p>
+        <p>Added small visual polish for click interactions.</p>
+      </description>
+    </release>
+    <release version="0.1.2" date="2026-06-02">
       <description>
         <p>Optimized PNG assets — reduced binary size by ~1 MB. General maintenance.</p>
       </description>

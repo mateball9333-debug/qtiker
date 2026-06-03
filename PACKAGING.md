@@ -1,79 +1,65 @@
 # Packaging Qtiker
 
-This project is prepared for normal Linux installation and AUR packaging.
-
-## Local Install
-
-```bash
-./qtiker.sh run
-```
-
-This builds, installs into `~/.local`, updates desktop/icon metadata when tools
-are available, and starts the app.
-
-## GitHub Upstream
-
-The AUR package expects this upstream URL:
+This repository already has a GitHub upstream:
 
 ```text
 https://github.com/mateball9333-debug/qtiker
 ```
 
-Before publishing, make sure GitHub CLI auth is fixed:
+Keep generated build outputs out of git. Local CMake builds belong in `build/`;
+AUR build outputs belong under `packaging/aur/qtiker-git/` and are ignored.
+
+## Local Build
 
 ```bash
-gh auth login
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-or:
+The helper script can build, install to `~/.local`, refresh desktop metadata,
+and run the app:
 
 ```bash
-gh auth refresh -h github.com
+./qtiker.sh run
 ```
 
-Then initialize and publish:
+## Release Checklist
 
-```bash
-git init
-git add .
-git commit -m "Initial Qtiker package"
-gh repo create mateball9333-debug/qtiker --public --source=. --remote=origin --push
-git tag v0.1.1
-git push origin v0.1.1
-```
+1. Update `project(... VERSION ...)` in `CMakeLists.txt`.
+2. Update `AppVersion` in `src/appversion.h`.
+3. Commit the release changes.
+4. Tag the commit, for example `git tag v0.2.0`.
+5. Push both the branch and the tag.
 
-If an empty `.git` directory is present and Git says this is not a repository,
-remove that empty directory first:
+## AUR Package
 
-```bash
-rmdir .git
-```
-
-Only do this if `.git` is empty.
-
-## AUR
-
-The AUR skeleton is here:
+The AUR files live in:
 
 ```text
 packaging/aur/qtiker-git/
 ```
 
-After the GitHub repo exists:
+Regenerate `.SRCINFO` after changing `PKGBUILD`:
 
 ```bash
 cd packaging/aur/qtiker-git
 makepkg --printsrcinfo > .SRCINFO
+```
+
+Build locally:
+
+```bash
 makepkg -si
 ```
 
-To publish to AUR:
+Publish by copying `PKGBUILD` and `.SRCINFO` into a checkout of the AUR repo:
 
 ```bash
 git clone ssh://aur@aur.archlinux.org/qtiker-git.git /tmp/qtiker-git-aur
-cp PKGBUILD .SRCINFO /tmp/qtiker-git-aur/
+cp packaging/aur/qtiker-git/PKGBUILD packaging/aur/qtiker-git/.SRCINFO /tmp/qtiker-git-aur/
 cd /tmp/qtiker-git-aur
 git add PKGBUILD .SRCINFO
-git commit -m "Initial import"
+git commit -m "Update qtiker-git"
 git push
 ```

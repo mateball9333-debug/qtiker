@@ -2,7 +2,7 @@
 
 #include <QtGlobal>
 
-struct GameState {
+struct LegacyGameState {
     qint64 score = 0;
     int perClick = 1;
     int perSecond = 0;

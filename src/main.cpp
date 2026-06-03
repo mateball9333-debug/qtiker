@@ -1,4 +1,4 @@
-#include "clicker.h"
+#include "game_shell.h"
 
 #include <QApplication>
 #include <QIcon>
@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     QApplication::setOrganizationName("qtiker");
     QApplication::setWindowIcon(QIcon(":/assets/qtiker-64.png"));
 
-    Clicker window;
+    GameShell window;
     window.show();
 
     return app.exec();

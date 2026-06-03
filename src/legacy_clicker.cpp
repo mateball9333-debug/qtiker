@@ -1,9 +1,7 @@
-#include "clicker.h"
+#include "legacy_clicker.h"
 
-#include "appversion.h"
 #include "game_rules.h"
 
-#include <QApplication>
 #include <QBuffer>
 #include <QCloseEvent>
 #include <QDialog>
@@ -24,31 +22,37 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
-Clicker::Clicker(QWidget *parent) : QWidget(parent) {
-    setupWindow();
+namespace {
+constexpr QSize LegacyIconSize(16, 16);
+constexpr QSize LegacyIconButtonSize(32, 28);
+constexpr QSize LegacyChangelogButtonSize(86, 28);
+constexpr auto LegacyVersion = "0.1.2";
+}
+
+LegacyClicker::LegacyClicker(QWidget *parent) : QWidget(parent) {
     loadGame();
     buildUi();
     startIncomeTimer();
     refreshUi();
 }
 
-void Clicker::changeEvent(QEvent *event) {
+void LegacyClicker::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
 
     if (event->type() == QEvent::PaletteChange
         || event->type() == QEvent::ApplicationPaletteChange
         || event->type() == QEvent::StyleChange) {
-        QTimer::singleShot(0, this, &Clicker::applyThemeIcons);
-        QTimer::singleShot(100, this, &Clicker::applyThemeIcons);
+        QTimer::singleShot(0, this, &LegacyClicker::applyThemeIcons);
+        QTimer::singleShot(100, this, &LegacyClicker::applyThemeIcons);
     }
 }
 
-void Clicker::closeEvent(QCloseEvent *event) {
+void LegacyClicker::closeEvent(QCloseEvent *event) {
     saveGame();
     QWidget::closeEvent(event);
 }
 
-bool Clicker::eventFilter(QObject *watched, QEvent *event) {
+bool LegacyClicker::eventFilter(QObject *watched, QEvent *event) {
     if (watched == clickButton && event->type() == QEvent::MouseButtonRelease) {
         auto *mouseEvent = static_cast<QMouseEvent *>(event);
         if (mouseEvent->button() == Qt::MiddleButton) {
@@ -60,38 +64,38 @@ bool Clicker::eventFilter(QObject *watched, QEvent *event) {
     return QWidget::eventFilter(watched, event);
 }
 
-void Clicker::makeClick() {
+void LegacyClicker::makeClick() {
     game.score += game.perClick;
     refreshUi();
 }
 
-void Clicker::buyClickUpgrade() {
+void LegacyClicker::buyClickUpgrade() {
     if (game.score < game.clickCost) {
         return;
     }
 
     game.score -= game.clickCost;
     game.perClick += 1;
-    game.clickCost = nextCost(game.clickCost, 10);
+    game.clickCost = nextUpgradeCost(game.clickCost, 10);
 
     saveGame();
     refreshUi();
 }
 
-void Clicker::buyIncomeUpgrade() {
+void LegacyClicker::buyIncomeUpgrade() {
     if (game.score < game.incomeCost) {
         return;
     }
 
     game.score -= game.incomeCost;
     game.perSecond += 1;
-    game.incomeCost = nextCost(game.incomeCost, 15);
+    game.incomeCost = nextUpgradeCost(game.incomeCost, 15);
 
     saveGame();
     refreshUi();
 }
 
-void Clicker::addPassiveIncome() {
+void LegacyClicker::addPassiveIncome() {
     if (game.perSecond == 0) {
         return;
     }
@@ -101,18 +105,18 @@ void Clicker::addPassiveIncome() {
     refreshUi();
 }
 
-void Clicker::resetGame() {
+void LegacyClicker::resetGame() {
     game.reset();
     saveGame();
     refreshUi();
 }
 
-void Clicker::showSettings() {
+void LegacyClicker::showSettings() {
     auto *dialog = new QDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle("Qtiker Settings");
+    dialog->setWindowTitle("Qtiker Legacy Settings");
     dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    dialog->resize(320, 170);
+    dialog->resize(320, 210);
 
     auto *layout = new QVBoxLayout(dialog);
     layout->setContentsMargins(12, 12, 12, 12);
@@ -128,15 +132,21 @@ void Clicker::showSettings() {
     resetLayout->setContentsMargins(10, 8, 10, 8);
     resetLayout->setSpacing(8);
 
-    auto *resetText = new QLabel("Reset saved progress", resetBox);
+    auto *resetText = new QLabel("Reset legacy progress", resetBox);
     setFont(resetText, resetText->font().pointSize(), true);
 
     auto *resetButton = new QPushButton("Reset", resetBox);
+    resetButton->setIcon(tintedSvgIcon(
+        ":/assets/ui/reset.svg",
+        resetButton->palette().color(QPalette::ButtonText),
+        LegacyIconSize
+    ));
+    resetButton->setIconSize(LegacyIconSize);
     connect(resetButton, &QPushButton::clicked, this, [this, dialog]() {
         auto answer = QMessageBox::question(
             dialog,
             "Reset",
-            "Are you sure you want to delete everything?",
+            "Are you sure you want to delete legacy progress?",
             QMessageBox::Yes | QMessageBox::No,
             QMessageBox::No
         );
@@ -150,21 +160,42 @@ void Clicker::showSettings() {
     resetLayout->addStretch();
     resetLayout->addWidget(resetButton);
 
+    auto *modeBox = new QFrame(dialog);
+    modeBox->setFrameShape(QFrame::StyledPanel);
+
+    auto *modeLayout = new QHBoxLayout(modeBox);
+    modeLayout->setContentsMargins(10, 8, 10, 8);
+    modeLayout->setSpacing(8);
+
+    auto *modeText = new QLabel("Game version", modeBox);
+    setFont(modeText, modeText->font().pointSize(), true);
+
+    auto *modernButton = new QPushButton("Qtiker 0.2.0", modeBox);
+    connect(modernButton, &QPushButton::clicked, this, [this, dialog]() {
+        emit switchToModernRequested();
+        dialog->accept();
+    });
+
+    modeLayout->addWidget(modeText);
+    modeLayout->addStretch();
+    modeLayout->addWidget(modernButton);
+
     auto *closeButton = new QPushButton("Close", dialog);
     connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
 
     layout->addWidget(title);
     layout->addWidget(resetBox);
+    layout->addWidget(modeBox);
     layout->addStretch();
     layout->addWidget(closeButton);
 
     dialog->show();
 }
 
-void Clicker::showChangelog() {
+void LegacyClicker::showChangelog() {
     auto *dialog = new QDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle("Qtiker Release Notes");
+    dialog->setWindowTitle("Qtiker Legacy Release Notes");
     dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
     dialog->resize(340, 260);
 
@@ -178,7 +209,7 @@ void Clicker::showChangelog() {
     auto *title = new QLabel("Release notes", dialog);
     setFont(title, 13, true);
 
-    auto *version = new QLabel(QString("v%1").arg(AppVersion), dialog);
+    auto *version = new QLabel(QString("v%1").arg(LegacyVersion), dialog);
     version->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     setFont(version, version->font().pointSize(), true);
 
@@ -189,14 +220,6 @@ void Clicker::showChangelog() {
     auto *changes = new QTextBrowser(dialog);
     changes->setOpenExternalLinks(false);
     changes->setHtml(changelogHtml());
-    changes->setStyleSheet(
-        "QTextBrowser {"
-        "  border: 1px solid palette(midlight);"
-        "  border-radius: 6px;"
-        "  padding: 6px;"
-        "  background: palette(base);"
-        "}"
-    );
 
     auto *closeButton = new QPushButton("Close", dialog);
     connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
@@ -208,7 +231,7 @@ void Clicker::showChangelog() {
     dialog->show();
 }
 
-void Clicker::showTux() {
+void LegacyClicker::showTux() {
     auto *window = new QWidget(this, Qt::Dialog);
     window->setAttribute(Qt::WA_DeleteOnClose);
     window->setWindowTitle("Tux");
@@ -227,30 +250,23 @@ void Clicker::showTux() {
     window->show();
 }
 
-void Clicker::setupWindow() {
-    setWindowTitle("Qtiker");
-    setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    setMinimumSize(340, 360);
-    resize(360, 420);
-}
-
-void Clicker::buildUi() {
+void LegacyClicker::buildUi() {
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(14, 14, 14, 14);
     mainLayout->setSpacing(10);
 
-    changelogButton = new QPushButton(QString("v%1").arg(AppVersion), this);
-    changelogButton->setIconSize(QSize(16, 16));
+    changelogButton = new QPushButton(QString("v%1").arg(LegacyVersion), this);
+    changelogButton->setIconSize(LegacyIconSize);
     changelogButton->setToolTip("Release notes");
-    changelogButton->setFixedSize(86, 28);
+    changelogButton->setFixedSize(LegacyChangelogButtonSize);
     setFont(changelogButton, changelogButton->font().pointSize(), true);
-    connect(changelogButton, &QPushButton::clicked, this, &Clicker::showChangelog);
+    connect(changelogButton, &QPushButton::clicked, this, &LegacyClicker::showChangelog);
 
     settingsButton = new QPushButton(this);
-    settingsButton->setIconSize(QSize(16, 16));
+    settingsButton->setIconSize(LegacyIconSize);
     settingsButton->setToolTip("Settings");
-    settingsButton->setFixedSize(32, 28);
-    connect(settingsButton, &QPushButton::clicked, this, &Clicker::showSettings);
+    settingsButton->setFixedSize(LegacyIconButtonSize);
+    connect(settingsButton, &QPushButton::clicked, this, &LegacyClicker::showSettings);
     applyThemeIcons();
 
     auto *topLayout = new QHBoxLayout();
@@ -272,7 +288,7 @@ void Clicker::buildUi() {
     clickButton->setMinimumHeight(76);
     setFont(clickButton, 18, true);
     clickButton->installEventFilter(this);
-    connect(clickButton, &QPushButton::clicked, this, &Clicker::makeClick);
+    connect(clickButton, &QPushButton::clicked, this, &LegacyClicker::makeClick);
 
     auto *upgradesBox = createUpgradesBox();
 
@@ -283,7 +299,7 @@ void Clicker::buildUi() {
     mainLayout->addWidget(upgradesBox);
 }
 
-QFrame *Clicker::createUpgradesBox() {
+QFrame *LegacyClicker::createUpgradesBox() {
     auto *box = new QFrame(this);
     box->setFrameShape(QFrame::StyledPanel);
 
@@ -297,8 +313,8 @@ QFrame *Clicker::createUpgradesBox() {
     clickUpgradeButton = new QPushButton(box);
     incomeUpgradeButton = new QPushButton(box);
 
-    connect(clickUpgradeButton, &QPushButton::clicked, this, &Clicker::buyClickUpgrade);
-    connect(incomeUpgradeButton, &QPushButton::clicked, this, &Clicker::buyIncomeUpgrade);
+    connect(clickUpgradeButton, &QPushButton::clicked, this, &LegacyClicker::buyClickUpgrade);
+    connect(incomeUpgradeButton, &QPushButton::clicked, this, &LegacyClicker::buyIncomeUpgrade);
 
     layout->addWidget(title);
     layout->addWidget(clickUpgradeButton);
@@ -307,26 +323,26 @@ QFrame *Clicker::createUpgradesBox() {
     return box;
 }
 
-void Clicker::startIncomeTimer() {
+void LegacyClicker::startIncomeTimer() {
     incomeTimer = new QTimer(this);
     incomeTimer->setInterval(1000);
-    connect(incomeTimer, &QTimer::timeout, this, &Clicker::addPassiveIncome);
+    connect(incomeTimer, &QTimer::timeout, this, &LegacyClicker::addPassiveIncome);
     incomeTimer->start();
 }
 
-void Clicker::applyThemeIcons() {
+void LegacyClicker::applyThemeIcons() {
     if (changelogButton != nullptr) {
         const auto iconColor = changelogButton->palette().color(QPalette::ButtonText);
-        changelogButton->setIcon(tintedSvgIcon(":/assets/ui/inbox.svg", iconColor, QSize(16, 16)));
+        changelogButton->setIcon(tintedSvgIcon(":/assets/ui/inbox.svg", iconColor, LegacyIconSize));
     }
 
     if (settingsButton != nullptr) {
         const auto iconColor = settingsButton->palette().color(QPalette::ButtonText);
-        settingsButton->setIcon(tintedSvgIcon(":/assets/ui/settings.svg", iconColor, QSize(16, 16)));
+        settingsButton->setIcon(tintedSvgIcon(":/assets/ui/settings.svg", iconColor, LegacyIconSize));
     }
 }
 
-void Clicker::refreshUi() {
+void LegacyClicker::refreshUi() {
     scoreLabel->setText(QString::number(game.score));
     statsLabel->setText(QString("Click +%1 · Income +%2/sec")
                             .arg(game.perClick)
@@ -339,23 +355,22 @@ void Clicker::refreshUi() {
     incomeUpgradeButton->setEnabled(game.score >= game.incomeCost);
 }
 
-void Clicker::loadGame() {
-    QSettings settings("qtiker", "qtiker");
+void LegacyClicker::loadGame() {
+    QSettings settings("qtiker", "qtiker-legacy-0.1.2");
     game.score = settings.value("score", game.score).toLongLong();
     game.perClick = settings.value("perClick", game.perClick).toInt();
     game.perSecond = settings.value("perSecond", game.perSecond).toInt();
     game.clickCost = settings.value("clickCost", game.clickCost).toInt();
     game.incomeCost = settings.value("incomeCost", game.incomeCost).toInt();
 
-    // Compatibility with early test builds.
     game.perClick = settings.value("clickPower", game.perClick).toInt();
     game.perSecond = settings.value("autoPower", game.perSecond).toInt();
     game.clickCost = settings.value("clickUpgradeCost", game.clickCost).toInt();
     game.incomeCost = settings.value("autoUpgradeCost", game.incomeCost).toInt();
 }
 
-void Clicker::saveGame() const {
-    QSettings settings("qtiker", "qtiker");
+void LegacyClicker::saveGame() const {
+    QSettings settings("qtiker", "qtiker-legacy-0.1.2");
     settings.setValue("score", game.score);
     settings.setValue("perClick", game.perClick);
     settings.setValue("perSecond", game.perSecond);
@@ -363,11 +378,7 @@ void Clicker::saveGame() const {
     settings.setValue("incomeCost", game.incomeCost);
 }
 
-int Clicker::nextCost(int currentCost, int extra) const {
-    return nextUpgradeCost(currentCost, extra);
-}
-
-QIcon Clicker::tintedSvgIcon(const QString &path, const QColor &color, const QSize &size) const {
+QIcon LegacyClicker::tintedSvgIcon(const QString &path, const QColor &color, const QSize &size) const {
     QPixmap pixmap(size);
     pixmap.fill(Qt::transparent);
 
@@ -381,7 +392,7 @@ QIcon Clicker::tintedSvgIcon(const QString &path, const QColor &color, const QSi
     return QIcon(pixmap);
 }
 
-QString Clicker::tintedSvgDataUri(const QString &path, const QColor &color, const QSize &size) const {
+QString LegacyClicker::tintedSvgDataUri(const QString &path, const QColor &color, const QSize &size) const {
     QImage image(size, QImage::Format_ARGB32_Premultiplied);
     image.fill(Qt::transparent);
 
@@ -400,7 +411,7 @@ QString Clicker::tintedSvgDataUri(const QString &path, const QColor &color, cons
     return QString("data:image/png;base64,%1").arg(QString::fromLatin1(bytes.toBase64()));
 }
 
-QString Clicker::changelogHtml() const {
+QString LegacyClicker::changelogHtml() const {
     const auto addIcon = tintedSvgDataUri(":/assets/ui/add.svg", QColor("#2e7d32"), QSize(14, 14));
     const auto changedIcon = tintedSvgDataUri(":/assets/ui/changed.svg", QColor("#ef6c00"), QSize(13, 13));
 
@@ -419,7 +430,7 @@ QString Clicker::changelogHtml() const {
         <table>
             <tr>
                 <td class="icon"><img src="%2" width="13" height="13"></td>
-                <td class="entry">Optimized PNG assets — binary ~1 MB lighter.</td>
+                <td class="entry">Optimized PNG assets - binary ~1 MB lighter.</td>
             </tr>
         </table>
         <h3><span class="version">0.1.1</span> <span class="date">2026-06-02</span></h3>
@@ -459,7 +470,7 @@ QString Clicker::changelogHtml() const {
     )").arg(addIcon, changedIcon);
 }
 
-void Clicker::setFont(QWidget *widget, int pointSize, bool bold) {
+void LegacyClicker::setFont(QWidget *widget, int pointSize, bool bold) {
     auto font = widget->font();
     if (pointSize > 0) {
         font.setPointSize(pointSize);

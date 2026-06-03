@@ -1,5 +1,5 @@
 set(source_root "${PROJECT_SOURCE_DIR}")
-file(READ "${source_root}/clicker.cpp" clicker_cpp)
+file(READ "${source_root}/src/clicker.cpp" clicker_cpp)
 
 function(require_not_contains text pattern message)
     string(FIND "${text}" "${pattern}" match_index)

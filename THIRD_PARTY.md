@@ -1,5 +1,10 @@
 # Third-party assets
 
+## Qtiker project assets
+
+The application icons and `assets/ui/carat.png` are Qtiker project assets and
+are distributed under GPL-2.0-or-later with the application.
+
 ## Tux
 
 `assets/tux.png` is the original Tux, the Linux mascot.
@@ -17,8 +22,15 @@ The following files are based on Google Material Symbols:
 - `assets/ui/add.svg`
 - `assets/ui/changed.svg`
 - `assets/ui/inbox.svg`
+- `assets/ui/info.svg`
 - `assets/ui/remove.svg`
 - `assets/ui/settings.svg`
+- `assets/ui/statistics.svg`
+- `assets/ui/stat-down-double.svg`
+- `assets/ui/stat-down.svg`
+- `assets/ui/stat-neutral.svg`
+- `assets/ui/stat-up-double.svg`
+- `assets/ui/stat-up.svg`
 
 Source: https://fonts.google.com/icons
 

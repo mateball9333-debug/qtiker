@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qtiker VERSION 0.1.2 LANGUAGES CXX)
+project(qtiker VERSION 0.2.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CTest)
@@ -11,12 +11,19 @@ configure_file(qtiker.desktop.in qtiker.desktop @ONLY)
 configure_file(io.github.mateball9333.qtiker.metainfo.xml.in io.github.mateball9333.qtiker.metainfo.xml @ONLY)
 
 add_executable(qtiker
-    main.cpp
-    clicker.cpp
-    clicker.h
-    gamestate.h
-    game_rules.h
-    appversion.h
+    src/main.cpp
+    src/clicker.cpp
+    src/clicker.h
+    src/game_shell.cpp
+    src/game_shell.h
+    src/gacha_dialog.cpp
+    src/gacha_dialog.h
+    src/gamestate.h
+    src/game_rules.h
+    src/legacy_clicker.cpp
+    src/legacy_clicker.h
+    src/legacy_gamestate.h
+    src/appversion.h
 )
 target_link_libraries(qtiker Qt6::Widgets Qt6::Svg)
 qt_add_resources(qtiker "app_resources"
@@ -25,15 +32,19 @@ qt_add_resources(qtiker "app_resources"
         assets/qtiker-64.png
         assets/tux.png
         assets/ui/add.svg
+        assets/ui/carat.png
         assets/ui/changed.svg
         assets/ui/inbox.svg
+        assets/ui/info.svg
         assets/ui/remove.svg
+        assets/ui/reset.svg
         assets/ui/settings.svg
+        assets/ui/statistics.svg
 )
 
 if(BUILD_TESTING)
     add_executable(qtiker_state_tests tests/gamestate_test.cpp)
-    target_include_directories(qtiker_state_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(qtiker_state_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_link_libraries(qtiker_state_tests Qt6::Core)
     add_test(NAME gamestate COMMAND qtiker_state_tests)
 
