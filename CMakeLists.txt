@@ -27,6 +27,14 @@ add_executable(qtiker
     src/particle_overlay.h
     src/release_notes.h
     src/appversion.h
+    src/svg_utils.h
+    src/utils.h
+    src/settings_dialog.cpp
+    src/settings_dialog.h
+    src/carat_dialog.cpp
+    src/carat_dialog.h
+    src/statistics_dialog.cpp
+    src/statistics_dialog.h
 )
 target_link_libraries(qtiker Qt6::Widgets Qt6::Svg)
 qt_add_resources(qtiker "app_resources"

@@ -48,10 +48,7 @@ private:
     void refreshUi();
     void loadGame();
     void saveGame() const;
-    QIcon tintedSvgIcon(const QString &path, const QColor &color, const QSize &size) const;
-    QString tintedSvgDataUri(const QString &path, const QColor &color, const QSize &size) const;
     QString changelogHtml() const;
-    void setFont(QWidget *widget, int pointSize, bool bold);
 
     LegacyGameState game;
 

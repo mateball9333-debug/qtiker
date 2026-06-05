@@ -2,32 +2,25 @@
 
 #include "appversion.h"
 #include "game_rules.h"
+#include "svg_utils.h"
+#include "utils.h"
 
-#include <QBuffer>
 #include <QCloseEvent>
 #include <QDialog>
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
-#include <QIODevice>
-#include <QImage>
 #include <QLabel>
 #include <QMessageBox>
 #include <QMouseEvent>
-#include <QPainter>
-#include <QPixmap>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSettings>
-#include <QSvgRenderer>
 #include <QTextBrowser>
 #include <QTimer>
 #include <QVBoxLayout>
 
 namespace {
-constexpr QSize LegacyIconSize(16, 16);
-constexpr QSize LegacyIconButtonSize(32, 28);
-constexpr QSize LegacyChangelogButtonSize(92, 28);
 constexpr auto LegacyVersion = "0.1.2";
 }
 
@@ -121,29 +114,29 @@ void LegacyClicker::showSettings() {
     dialog->resize(320, 210);
 
     auto *layout = new QVBoxLayout(dialog);
-    layout->setContentsMargins(12, 12, 12, 12);
-    layout->setSpacing(10);
+    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
+    layout->setSpacing(WindowSpacing);
 
     auto *title = new QLabel("Settings", dialog);
-    setFont(title, 13, true);
+    setWidgetFont(title, 13, true);
 
     auto *resetBox = new QFrame(dialog);
     resetBox->setFrameShape(QFrame::StyledPanel);
 
     auto *resetLayout = new QHBoxLayout(resetBox);
-    resetLayout->setContentsMargins(10, 8, 10, 8);
-    resetLayout->setSpacing(8);
+    resetLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    resetLayout->setSpacing(DialogSpacing);
 
     auto *resetText = new QLabel("Reset legacy progress", resetBox);
-    setFont(resetText, resetText->font().pointSize(), true);
+    setWidgetFont(resetText, resetText->font().pointSize(), true);
 
     auto *resetButton = new QPushButton("Reset", resetBox);
     resetButton->setIcon(tintedSvgIcon(
         ":/assets/ui/reset.svg",
         resetButton->palette().color(QPalette::ButtonText),
-        LegacyIconSize
+        TopIconSize
     ));
-    resetButton->setIconSize(LegacyIconSize);
+    resetButton->setIconSize(TopIconSize);
     connect(resetButton, &QPushButton::clicked, this, [this, dialog]() {
         auto answer = QMessageBox::question(
             dialog,
@@ -166,11 +159,11 @@ void LegacyClicker::showSettings() {
     modeBox->setFrameShape(QFrame::StyledPanel);
 
     auto *modeLayout = new QHBoxLayout(modeBox);
-    modeLayout->setContentsMargins(10, 8, 10, 8);
-    modeLayout->setSpacing(8);
+    modeLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    modeLayout->setSpacing(DialogSpacing);
 
     auto *modeText = new QLabel("Game version", modeBox);
-    setFont(modeText, modeText->font().pointSize(), true);
+    setWidgetFont(modeText, modeText->font().pointSize(), true);
 
     auto *modernButton = new QPushButton(QString("Qtiker %1").arg(AppVersion), modeBox);
     connect(modernButton, &QPushButton::clicked, this, [this, dialog]() {
@@ -202,18 +195,18 @@ void LegacyClicker::showChangelog() {
     dialog->resize(340, 260);
 
     auto *layout = new QVBoxLayout(dialog);
-    layout->setContentsMargins(12, 12, 12, 12);
-    layout->setSpacing(8);
+    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
+    layout->setSpacing(DialogSpacing);
 
     auto *titleLayout = new QHBoxLayout();
-    titleLayout->setSpacing(8);
+    titleLayout->setSpacing(DialogSpacing);
 
     auto *title = new QLabel("Release notes", dialog);
-    setFont(title, 13, true);
+    setWidgetFont(title, 13, true);
 
     auto *version = new QLabel(QString("v%1").arg(LegacyVersion), dialog);
     version->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    setFont(version, version->font().pointSize(), true);
+    setWidgetFont(version, version->font().pointSize(), true);
 
     titleLayout->addWidget(title);
     titleLayout->addStretch();
@@ -265,7 +258,7 @@ void LegacyClicker::showTux() {
     window->setWindowIcon(QIcon(":/assets/tux.png"));
 
     auto *layout = new QVBoxLayout(window);
-    layout->setContentsMargins(12, 12, 12, 12);
+    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
 
     auto *image = new QLabel(window);
     image->setAlignment(Qt::AlignCenter);
@@ -279,41 +272,41 @@ void LegacyClicker::showTux() {
 
 void LegacyClicker::buildUi() {
     auto *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(14, 14, 14, 14);
-    mainLayout->setSpacing(10);
+    mainLayout->setContentsMargins(WindowMargin, WindowMargin, WindowMargin, WindowMargin);
+    mainLayout->setSpacing(WindowSpacing);
 
     changelogButton = new QPushButton(QString("  v%1").arg(LegacyVersion), this);
-    changelogButton->setIconSize(LegacyIconSize);
+    changelogButton->setIconSize(TopIconSize);
     changelogButton->setToolTip("Release notes");
-    changelogButton->setFixedSize(LegacyChangelogButtonSize);
-    setFont(changelogButton, changelogButton->font().pointSize(), true);
+    changelogButton->setFixedSize(ChangelogButtonSize);
+    setWidgetFont(changelogButton, changelogButton->font().pointSize(), true);
     connect(changelogButton, &QPushButton::clicked, this, &LegacyClicker::showChangelog);
 
     settingsButton = new QPushButton(this);
-    settingsButton->setIconSize(LegacyIconSize);
+    settingsButton->setIconSize(TopIconSize);
     settingsButton->setToolTip("Settings");
-    settingsButton->setFixedSize(LegacyIconButtonSize);
+    settingsButton->setFixedSize(TopIconButtonSize);
     connect(settingsButton, &QPushButton::clicked, this, &LegacyClicker::showSettings);
     applyThemeIcons();
 
     auto *topLayout = new QHBoxLayout();
     topLayout->setContentsMargins(0, 0, 0, 0);
-    topLayout->setSpacing(6);
+    topLayout->setSpacing(TopBarSpacing);
     topLayout->addStretch();
     topLayout->addWidget(changelogButton);
     topLayout->addWidget(settingsButton);
 
     scoreLabel = new QLabel(this);
     scoreLabel->setAlignment(Qt::AlignCenter);
-    setFont(scoreLabel, 30, true);
+    setWidgetFont(scoreLabel, 30, true);
 
     statsLabel = new QLabel(this);
     statsLabel->setAlignment(Qt::AlignCenter);
-    setFont(statsLabel, statsLabel->font().pointSize(), true);
+    setWidgetFont(statsLabel, statsLabel->font().pointSize(), true);
 
     clickButton = new QPushButton("Click", this);
     clickButton->setMinimumHeight(76);
-    setFont(clickButton, 18, true);
+    setWidgetFont(clickButton, 18, true);
     clickButton->installEventFilter(this);
     connect(clickButton, &QPushButton::clicked, this, &LegacyClicker::makeClick);
 
@@ -331,11 +324,11 @@ QFrame *LegacyClicker::createUpgradesBox() {
     box->setFrameShape(QFrame::StyledPanel);
 
     auto *layout = new QVBoxLayout(box);
-    layout->setContentsMargins(10, 10, 10, 10);
-    layout->setSpacing(8);
+    layout->setContentsMargins(PanelMargin, PanelMargin, PanelMargin, PanelMargin);
+    layout->setSpacing(DialogSpacing);
 
     auto *title = new QLabel("Upgrades", box);
-    setFont(title, title->font().pointSize(), true);
+    setWidgetFont(title, title->font().pointSize(), true);
 
     clickUpgradeButton = new QPushButton(box);
     incomeUpgradeButton = new QPushButton(box);
@@ -360,12 +353,12 @@ void LegacyClicker::startIncomeTimer() {
 void LegacyClicker::applyThemeIcons() {
     if (changelogButton != nullptr) {
         const auto iconColor = changelogButton->palette().color(QPalette::ButtonText);
-        changelogButton->setIcon(tintedSvgIcon(":/assets/ui/release-notes.svg", iconColor, LegacyIconSize));
+        changelogButton->setIcon(tintedSvgIcon(":/assets/ui/release-notes.svg", iconColor, TopIconSize));
     }
 
     if (settingsButton != nullptr) {
         const auto iconColor = settingsButton->palette().color(QPalette::ButtonText);
-        settingsButton->setIcon(tintedSvgIcon(":/assets/ui/settings.svg", iconColor, LegacyIconSize));
+        settingsButton->setIcon(tintedSvgIcon(":/assets/ui/settings.svg", iconColor, TopIconSize));
     }
 }
 
@@ -405,39 +398,6 @@ void LegacyClicker::saveGame() const {
     settings.setValue("perSecond", game.perSecond);
     settings.setValue("clickCost", game.clickCost);
     settings.setValue("incomeCost", game.incomeCost);
-}
-
-QIcon LegacyClicker::tintedSvgIcon(const QString &path, const QColor &color, const QSize &size) const {
-    QPixmap pixmap(size);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    QSvgRenderer renderer(path);
-    renderer.render(&painter, QRectF(QPointF(0, 0), QSizeF(size)));
-    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-    painter.fillRect(pixmap.rect(), color);
-    painter.end();
-
-    return QIcon(pixmap);
-}
-
-QString LegacyClicker::tintedSvgDataUri(const QString &path, const QColor &color, const QSize &size) const {
-    QImage image(size, QImage::Format_ARGB32_Premultiplied);
-    image.fill(Qt::transparent);
-
-    QPainter painter(&image);
-    QSvgRenderer renderer(path);
-    renderer.render(&painter, QRectF(QPointF(0, 0), QSizeF(size)));
-    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-    painter.fillRect(image.rect(), color);
-    painter.end();
-
-    QByteArray bytes;
-    QBuffer buffer(&bytes);
-    buffer.open(QIODevice::WriteOnly);
-    image.save(&buffer, "PNG");
-
-    return QString("data:image/png;base64,%1").arg(QString::fromLatin1(bytes.toBase64()));
 }
 
 QString LegacyClicker::changelogHtml() const {
@@ -497,13 +457,4 @@ QString LegacyClicker::changelogHtml() const {
             </tr>
         </table>
     )").arg(addIcon, changedIcon);
-}
-
-void LegacyClicker::setFont(QWidget *widget, int pointSize, bool bold) {
-    auto font = widget->font();
-    if (pointSize > 0) {
-        font.setPointSize(pointSize);
-    }
-    font.setBold(bold);
-    widget->setFont(font);
 }

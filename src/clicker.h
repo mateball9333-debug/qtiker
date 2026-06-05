@@ -28,6 +28,19 @@ class Clicker : public QWidget {
 public:
     explicit Clicker(QWidget *parent = nullptr);
 
+    void resetGame();
+    void showStatistics();
+    void showAssets();
+    void saveGame();
+    void refreshUi();
+    void activateTimedBuff(TimedBuff buff, int durationSeconds);
+    int timedBuffSecondsLeft(TimedBuff buff) const;
+    QString formatNumber(qint64 value) const;
+    QString formatDuration(qint64 seconds) const;
+    qint64 currentTotalPlaySeconds() const;
+
+    GameState game;
+
 signals:
     void switchToLegacyRequested();
 
@@ -42,7 +55,6 @@ private slots:
     void buyClickUpgrade();
     void buyIncomeUpgrade();
     void addPassiveIncome();
-    void resetGame();
     void showSettings();
     void showChangelog();
     void showInfo();
@@ -50,8 +62,6 @@ private slots:
     void selectGachaCard(GachaDialog *dialog, int index);
     void selectGachaCard2(GachaDialog *dialog, int index);
     void showCarat();
-    void showStatistics();
-    void showAssets();
 
 private:
     enum class TextEffectMode {
@@ -95,10 +105,7 @@ private:
     void stopChangelogHighlight();
     void updateStatsBuffGlow();
     void markChangelogSeen();
-    void refreshUi();
     void loadGame();
-    void saveGame();
-    qint64 currentTotalPlaySeconds() const;
     void addArchProgress(qint64 amount);
     void maybeStartClickEffect();
     void updateClickEffect();
@@ -108,18 +115,10 @@ private:
     qint64 applyActiveCardBonus(qint64 value, GachaEffect effect) const;
     qint64 applyTimedBuffBonuses(qint64 value, TimedBuffEffect effect) const;
     bool isTimedBuffActive(TimedBuff buff) const;
-    int timedBuffSecondsLeft(TimedBuff buff) const;
-    void activateTimedBuff(TimedBuff buff, int durationSeconds);
-    QString formatNumber(qint64 value) const;
-    QString formatDuration(qint64 seconds) const;
     QString formatUpgradeText(const QString &label, int ownedCount, int cost) const;
-    QIcon tintedSvgIcon(const QString &path, const QColor &color, const QSize &size) const;
-    QString tintedSvgDataUri(const QString &path, const QColor &color, const QSize &size) const;
     QString changelogHtml() const;
     void buttonChange();
-    void setFont(QWidget *widget, int pointSize, bool bold);
 
-    GameState game;
     QElapsedTimer playTimer;
 
     QLabel *scoreLabel = nullptr;

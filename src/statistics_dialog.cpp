@@ -1,0 +1,86 @@
+#include "statistics_dialog.h"
+
+#include "clicker.h"
+#include "utils.h"
+
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
+
+StatisticsDialog::StatisticsDialog(Clicker *parentClicker)
+    : QDialog(parentClicker), clicker(parentClicker)
+{
+    setAttribute(Qt::WA_DeleteOnClose);
+    setWindowTitle("Qtiker Statistics");
+    setWindowIcon(QIcon(":/assets/qtiker-64.png"));
+    resize(340, 260);
+
+    auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
+    layout->setSpacing(WindowSpacing);
+
+    auto *title = new QLabel("Statistics", this);
+    setWidgetFont(title, 13, true);
+
+    auto *statsBox = new QFrame(this);
+    statsBox->setFrameShape(QFrame::StyledPanel);
+
+    auto *statsLayout = new QVBoxLayout(statsBox);
+    statsLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    statsLayout->setSpacing(DialogSpacing);
+
+    auto *totalClicksLabel = new QLabel(
+        QString("Total clicks: %1").arg(clicker->formatNumber(clicker->game.totalClicks)),
+        statsBox
+    );
+    auto *earnedScoreLabel = new QLabel(
+        QString("Total score earned: %1").arg(clicker->formatNumber(clicker->game.totalScoreEarned)),
+        statsBox
+    );
+    auto *playTimeLabel = new QLabel(
+        QString("Total play time: %1").arg(clicker->formatDuration(clicker->currentTotalPlaySeconds())),
+        statsBox
+    );
+    auto *archesLabel = new QLabel(
+        QString("Total Arch's earned: %1").arg(clicker->formatNumber(clicker->game.totalArchesEarned)),
+        statsBox
+    );
+
+    statsLayout->addWidget(totalClicksLabel);
+    statsLayout->addWidget(earnedScoreLabel);
+    statsLayout->addWidget(playTimeLabel);
+    statsLayout->addWidget(archesLabel);
+
+    auto *uselessBox = new QFrame(this);
+    uselessBox->setFrameShape(QFrame::StyledPanel);
+
+    auto *uselessLayout = new QVBoxLayout(uselessBox);
+    uselessLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    uselessLayout->setSpacing(DialogSpacing);
+
+    auto *uselessTitle = new QLabel("Questionable statistic", uselessBox);
+    setWidgetFont(uselessTitle, uselessTitle->font().pointSize(), true);
+
+    auto *rightClicksLabel = new QLabel(
+        QString("Right-clicks on Click button: %1").arg(clicker->formatNumber(clicker->game.clickButtonRightClicks)),
+        uselessBox
+    );
+
+    uselessLayout->addWidget(uselessTitle);
+    uselessLayout->addWidget(rightClicksLabel);
+
+    auto *closeButton = new QPushButton("Close", this);
+    connect(closeButton, &QPushButton::clicked, this, &QDialog::accept);
+
+    auto *assetsButton = new QPushButton("Browse assets", this);
+    connect(assetsButton, &QPushButton::clicked, clicker, &Clicker::showAssets);
+
+    layout->addWidget(title);
+    layout->addWidget(statsBox);
+    layout->addWidget(uselessBox);
+    layout->addWidget(assetsButton);
+    layout->addStretch();
+    layout->addWidget(closeButton);
+}

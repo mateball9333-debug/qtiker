@@ -1,13 +1,17 @@
 #include "clicker.h"
 
 #include "appversion.h"
+#include "carat_dialog.h"
 #include "gacha_dialog.h"
 #include "game_rules.h"
 #include "particle_overlay.h"
 #include "release_notes.h"
+#include "settings_dialog.h"
+#include "statistics_dialog.h"
+#include "svg_utils.h"
+#include "utils.h"
 
 #include <QApplication>
-#include <QBuffer>
 #include <QCloseEvent>
 #include <QDateTime>
 #include <QDialog>
@@ -16,13 +20,10 @@
 #include <QFont>
 #include <QFrame>
 #include <QGraphicsDropShadowEffect>
-#include <QGridLayout>
 #include <QHBoxLayout>
-#include <QIODevice>
 #include <QImage>
 #include <QLabel>
 #include <QLocale>
-#include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
@@ -32,7 +33,6 @@
 #include <QResizeEvent>
 #include <QSettings>
 #include <QShortcut>
-#include <QStringList>
 #include <QSvgRenderer>
 #include <QTextBrowser>
 #include <QTimer>
@@ -42,22 +42,12 @@
 #include <iterator>
 
 namespace {
-constexpr QSize TopIconSize(16, 16);
-constexpr QSize TopIconButtonSize(32, 28);
-constexpr QSize ChangelogButtonSize(92, 28);
-constexpr int WindowMargin = 14;
-constexpr int WindowSpacing = 10;
-constexpr int DialogMargin = 12;
-constexpr int DialogSpacing = 8;
-constexpr int PanelMargin = 10;
-constexpr int TopBarSpacing = 6;
 constexpr int ButtonTextChangeChance = 35;
 constexpr int ClickEffectChance = 10;
 constexpr int ClickEffectCheckMs = 10000;
 constexpr int ClickEffectFrameMs = 120;
 constexpr int ClickEffectFrames = 34;
 constexpr int ChangelogHighlightFrameMs = 140;
-constexpr QSize CaratIconSize(18, 18);
 
 const char *NumberSuffixes[] = {
     "",
@@ -103,7 +93,6 @@ constexpr auto LegacyAutoUpgradeCost = "autoUpgradeCost";
 constexpr auto LegacyTotalClicks = "totalClicks";
 constexpr auto LegacyTotalClickScoreEarned = "totalClickScoreEarned";
 }
-
 }
 
 Clicker::Clicker(QWidget *parent) : QWidget(parent) {
@@ -268,219 +257,7 @@ void Clicker::resetGame() {
 }
 
 void Clicker::showSettings() {
-    auto *dialog = new QDialog(this);
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle("Qtiker Settings");
-    dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    dialog->resize(320, 170);
-
-    auto *layout = new QVBoxLayout(dialog);
-    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
-    layout->setSpacing(WindowSpacing);
-
-    auto *title = new QLabel("Settings", dialog);
-    setFont(title, 13, true);
-
-    auto *resetBox = new QFrame(dialog);
-    resetBox->setFrameShape(QFrame::StyledPanel);
-
-    auto *resetLayout = new QHBoxLayout(resetBox);
-    resetLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-    resetLayout->setSpacing(DialogSpacing);
-
-    auto *resetText = new QLabel("Reset saved progress", resetBox);
-    setFont(resetText, resetText->font().pointSize(), true);
-
-    auto *resetButton = new QPushButton("Reset", resetBox);
-    resetButton->setIcon(tintedSvgIcon(
-        ":/assets/ui/reset.svg",
-        resetButton->palette().color(QPalette::ButtonText),
-        TopIconSize
-    ));
-    resetButton->setIconSize(TopIconSize);
-    connect(resetButton, &QPushButton::clicked, this, [this, dialog]() {
-        auto answer = QMessageBox::question(
-            dialog,
-            "Reset",
-            "Are you sure you want to delete saved progress?",
-            QMessageBox::Yes | QMessageBox::No,
-            QMessageBox::No
-        );
-        if (answer == QMessageBox::Yes) {
-            resetGame();
-            dialog->accept();
-        }
-    });
-
-    resetLayout->addWidget(resetText);
-    resetLayout->addStretch();
-    resetLayout->addWidget(resetButton);
-
-    auto *statisticsBox = new QFrame(dialog);
-    statisticsBox->setFrameShape(QFrame::StyledPanel);
-
-    auto *statisticsLayout = new QHBoxLayout(statisticsBox);
-    statisticsLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-    statisticsLayout->setSpacing(DialogSpacing);
-
-    auto *statisticsText = new QLabel(statisticsBox);
-    setFont(statisticsText, statisticsText->font().pointSize(), true);
-    statisticsText->setTextFormat(Qt::RichText);
-    statisticsText->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
-    statisticsText->setProperty("role", "statsLink");
-    statisticsText->installEventFilter(this);
-    const auto refreshLink = [](QLabel *label) {
-        if (!label) return;
-        const auto c = label->palette().color(QPalette::WindowText).name();
-        label->setText(QStringLiteral(
-            "<a href='#' style='text-decoration:none; color:%1;'>S</a>tatistics"
-        ).arg(c));
-    };
-    refreshLink(statisticsText);
-    connect(statisticsText, &QLabel::linkActivated, this, &Clicker::showAssets);
-
-    auto *statisticsButton = new QPushButton("Show statistics", statisticsBox);
-    statisticsButton->setIcon(tintedSvgIcon(
-        ":/assets/ui/statistics.svg",
-        statisticsButton->palette().color(QPalette::ButtonText),
-        TopIconSize
-    ));
-    statisticsButton->setIconSize(TopIconSize);
-    connect(statisticsButton, &QPushButton::clicked, this, &Clicker::showStatistics);
-
-    statisticsLayout->addWidget(statisticsText);
-    statisticsLayout->addStretch();
-    statisticsLayout->addWidget(statisticsButton);
-
-    auto *modeBox = new QFrame(dialog);
-    modeBox->setFrameShape(QFrame::StyledPanel);
-
-    auto *modeLayout = new QHBoxLayout(modeBox);
-    modeLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-    modeLayout->setSpacing(DialogSpacing);
-
-    auto *modeText = new QLabel("Game version", modeBox);
-    setFont(modeText, modeText->font().pointSize(), true);
-
-    auto *legacyButton = new QPushButton("Legacy 0.1.2", modeBox);
-    connect(legacyButton, &QPushButton::clicked, this, [this, dialog]() {
-        emit switchToLegacyRequested();
-        dialog->accept();
-    });
-
-    modeLayout->addWidget(modeText);
-    modeLayout->addStretch();
-    modeLayout->addWidget(legacyButton);
-
-    QSettings eeSettings("qtiker", "qtiker");
-    const bool easterEggFound = eeSettings.value("easterEggFound", false).toBool();
-
-    QFrame *buffBox = nullptr;
-    if (easterEggFound) {
-        buffBox = new QFrame(dialog);
-        buffBox->setFrameShape(QFrame::StyledPanel);
-
-        auto *buffLayout = new QHBoxLayout(buffBox);
-        buffLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-        buffLayout->setSpacing(DialogSpacing);
-
-        auto *buffText = new QLabel("Income +10% buff", buffBox);
-        setFont(buffText, buffText->font().pointSize(), true);
-
-        auto *buffButton = new QPushButton(
-            game.incomeBuffEasterEgg ? "ON" : "OFF", buffBox);
-        connect(buffButton, &QPushButton::clicked, this,
-                [this, buffButton]() {
-                    game.incomeBuffEasterEgg = !game.incomeBuffEasterEgg;
-                    buffButton->setText(game.incomeBuffEasterEgg ? "ON" : "OFF");
-                    saveGame();
-                    refreshUi();
-                });
-
-        buffLayout->addWidget(buffText);
-        buffLayout->addStretch();
-        buffLayout->addWidget(buffButton);
-    }
-
-    auto *justBox = new QFrame(dialog);
-    justBox->setFrameShape(QFrame::StyledPanel);
-
-    auto *justLayout = new QHBoxLayout(justBox);
-    justLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-    justLayout->setSpacing(DialogSpacing);
-
-    auto *justText = new QLabel("Just text", justBox);
-    setFont(justText, justText->font().pointSize(), true);
-
-    auto *justButton = new QPushButton("Just button", justBox);
-    auto *justGlowEffect = setButtonGlow(justButton, nullptr, QColor::fromHsv(0, 210, 245));
-    auto *justTextState = new TextEffectState();
-    auto *justMode = new int(0);
-    connect(justBox, &QObject::destroyed, this, [justTextState, justMode]() {
-        delete justTextState;
-        delete justMode;
-    });
-
-    auto *justButtonTimer = new QTimer(justButton);
-    justButtonTimer->setInterval(ChangelogHighlightFrameMs);
-    connect(justButtonTimer, &QTimer::timeout, this, [this, justButton, justText, justTextState, justGlowEffect, justMode, justButtonHue = 18]() mutable {
-        const auto color = QColor::fromHsv(justButtonHue, 210, 245);
-        if (*justMode == 0) {
-            justGlowEffect->setColor(color);
-        } else if (*justMode == 1) {
-            applyTextEffect(justText, *justTextState, TextEffectMode::RainbowGlow);
-        } else if (*justMode == 2) {
-            applyTextEffect(justText, *justTextState, TextEffectMode::RainbowFill);
-        }
-        justButtonHue = (justButtonHue + 18) % 360;
-    });
-    justButtonTimer->start();
-
-    connect(justButton, &QPushButton::clicked, this, [this, justButton, justText, justTextState, justGlowEffect, justMode]() {
-        *justMode = QRandomGenerator::global()->bounded(5);
-
-        clearTextEffect(justText, *justTextState);
-        justGlowEffect->setEnabled(false);
-
-        if (*justMode == 0) {
-            justButton->setText("Button glow");
-            justGlowEffect->setColor(QColor::fromHsv(0, 210, 245));
-            justGlowEffect->setEnabled(true);
-        } else if (*justMode == 1) {
-            justButton->setText("Text glow");
-            applyTextEffect(justText, *justTextState, TextEffectMode::RainbowGlow);
-        } else if (*justMode == 2) {
-            justButton->setText("Text rainbow");
-            applyTextEffect(justText, *justTextState, TextEffectMode::RainbowFill);
-        } else if (*justMode == 3) {
-            justButton->setText("Text fill");
-            applyTextEffect(justText, *justTextState, TextEffectMode::SolidFill, QColor("#2e7d32"));
-        } else {
-            justButton->setText("Just button");
-        }
-    });
-
-    justLayout->addWidget(justText);
-    justLayout->addStretch();
-    justLayout->addWidget(justButton);
-
-    auto *closeButton = new QPushButton("Close", dialog);
-    connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
-
-    layout->addWidget(title);
-    layout->addWidget(resetBox);
-    layout->addWidget(statisticsBox);
-    layout->addWidget(modeBox);
-    if (buffBox) {
-        layout->addWidget(buffBox);
-    }
-    layout->addWidget(justBox);
-    layout->addStretch();
-    layout->addWidget(closeButton);
-
-    dialog->show();
-
-    dialog->show();
+    (new SettingsDialog(this))->show();
 }
 
 void Clicker::buttonChange() {
@@ -520,11 +297,11 @@ void Clicker::showChangelog() {
     titleLayout->setSpacing(DialogSpacing);
 
     auto *title = new QLabel("Release notes", dialog);
-    setFont(title, 13, true);
+    setWidgetFont(title, 13, true);
 
     auto *version = new QLabel(QString("v%1").arg(AppVersion), dialog);
     version->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    setFont(version, version->font().pointSize(), true);
+    setWidgetFont(version, version->font().pointSize(), true);
 
     titleLayout->addWidget(title);
     titleLayout->addStretch();
@@ -572,7 +349,7 @@ void Clicker::showInfo() {
 
     auto *title = new QLabel(QString("Qtiker v%1").arg(AppVersion), dialog);
     title->setAlignment(Qt::AlignCenter);
-    setFont(title, 14, true);
+    setWidgetFont(title, 14, true);
 
     auto *description = new QLabel(
         "A small Qt Widgets clicker game for Linux desktops.",
@@ -628,325 +405,11 @@ void Clicker::showGacha() {
 }
 
 void Clicker::showCarat() {
-    auto *dialog = new QDialog(this);
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle("Carat");
-    dialog->setWindowIcon(QIcon(":/assets/ui/carat.png"));
-    dialog->resize(340, 280);
-
-    auto *layout = new QVBoxLayout(dialog);
-    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
-    layout->setSpacing(WindowSpacing);
-
-    auto *balanceBox = new QFrame(dialog);
-    balanceBox->setFrameShape(QFrame::StyledPanel);
-
-    auto *balanceLayout = new QHBoxLayout(balanceBox);
-    balanceLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-    balanceLayout->setSpacing(DialogSpacing);
-
-    auto *caratIcon = new QLabel(balanceBox);
-    caratIcon->setPixmap(QIcon(":/assets/ui/carat.png").pixmap(32, 32));
-
-    auto *caratBalanceLabel = new QLabel(balanceBox);
-    setFont(caratBalanceLabel, 14, true);
-
-    auto *clickBalanceLabel = new QLabel(balanceBox);
-    clickBalanceLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-
-    balanceLayout->addWidget(caratIcon);
-    balanceLayout->addWidget(caratBalanceLabel);
-    balanceLayout->addStretch();
-    balanceLayout->addWidget(clickBalanceLabel);
-
-    auto *burnButton = new QPushButton(dialog);
-    burnButton->setIcon(QIcon(":/assets/ui/carat.png"));
-    burnButton->setIconSize(CaratIconSize);
-
-    auto *burnX10Button = new QPushButton(dialog);
-    burnX10Button->setIcon(QIcon(":/assets/ui/carat.png"));
-    burnX10Button->setIconSize(CaratIconSize);
-
-    auto *burnRow = new QHBoxLayout();
-    burnRow->setContentsMargins(0, 0, 0, 0);
-    burnRow->setSpacing(DialogSpacing);
-    burnRow->addWidget(burnButton, 1);
-    burnRow->addWidget(burnX10Button);
-
-    auto *buffBox = new QFrame(dialog);
-    buffBox->setFrameShape(QFrame::StyledPanel);
-
-    auto *buffLayout = new QVBoxLayout(buffBox);
-    buffLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-    buffLayout->setSpacing(DialogSpacing);
-
-    std::array<QLabel *, TimedBuffCount> buffStatusLabels = {};
-    std::array<QPushButton *, TimedBuffCount> buyBuffButtons = {};
-    std::array<QPushButton *, TimedBuffCount> buyBuffX10Buttons = {};
-
-    for (int index = 0; index < TimedBuffCount; ++index) {
-        const auto &rule = TimedBuffRules[index];
-
-        auto *buffTitle = new QLabel(rule.name, buffBox);
-        setFont(buffTitle, buffTitle->font().pointSize(), true);
-
-        buffStatusLabels[index] = new QLabel(buffBox);
-        buffStatusLabels[index]->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        buyBuffButtons[index] = new QPushButton(buffBox);
-        buyBuffX10Buttons[index] = new QPushButton(buffBox);
-
-        auto *buffHeaderRow = new QHBoxLayout();
-        buffHeaderRow->setContentsMargins(0, 0, 0, 0);
-        buffHeaderRow->setSpacing(DialogSpacing);
-        buffHeaderRow->addWidget(buffTitle);
-        buffHeaderRow->addWidget(buffStatusLabels[index], 1);
-
-        auto *buffButtonRow = new QHBoxLayout();
-        buffButtonRow->setContentsMargins(0, 0, 0, 0);
-        buffButtonRow->setSpacing(DialogSpacing);
-        buffButtonRow->addWidget(buyBuffButtons[index], 1);
-        buffButtonRow->addWidget(buyBuffX10Buttons[index]);
-
-        buffLayout->addLayout(buffHeaderRow);
-        buffLayout->addLayout(buffButtonRow);
-    }
-
-    auto *closeButton = new QPushButton("Close", dialog);
-    connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
-
-    auto *slot2BuyButton = new QPushButton(dialog);
-    auto *penaltyUpgradeButton = new QPushButton(dialog);
-
-    const auto updateDialog = [this, caratBalanceLabel, clickBalanceLabel, burnButton, burnX10Button, buffStatusLabels, buyBuffButtons, buyBuffX10Buttons, slot2BuyButton, penaltyUpgradeButton]() {
-        caratBalanceLabel->setText(QString("Carat %1").arg(formatNumber(game.carats)));
-        clickBalanceLabel->setText(QString("%1 clicks").arg(formatNumber(game.score)));
-
-        burnButton->setText(QString("Burn %1 clicks  +%2 Carat")
-                                .arg(formatNumber(CaratBurnCost))
-                                .arg(formatNumber(CaratBurnReward)));
-        burnButton->setEnabled(game.score >= CaratBurnCost);
-
-        constexpr qint64 burnX10Cost = CaratBurnCost * 10;
-        constexpr qint64 burnX10Reward = CaratBurnReward * 10;
-        burnX10Button->setText(QString("x10  +%1").arg(formatNumber(burnX10Reward)));
-        burnX10Button->setEnabled(game.score >= burnX10Cost);
-        burnX10Button->setToolTip(QString("Burn %1 clicks for %2 Carat")
-                                      .arg(formatNumber(burnX10Cost))
-                                      .arg(formatNumber(burnX10Reward)));
-
-        for (int index = 0; index < TimedBuffCount; ++index) {
-            const auto &rule = TimedBuffRules[index];
-            const int secondsLeft = timedBuffSecondsLeft(rule.buff);
-
-            buffStatusLabels[index]->setText(secondsLeft > 0
-                ? QString("Active: %1s left").arg(secondsLeft)
-                : QString("Inactive"));
-            buyBuffButtons[index]->setText(QString("%1 for %2s  %3 Carat")
-                                               .arg(rule.name)
-                                               .arg(rule.durationSeconds)
-                                               .arg(formatNumber(rule.caratCost)));
-            buyBuffButtons[index]->setEnabled(game.carats >= rule.caratCost);
-
-            const qint64 x10Cost = rule.caratCost * 10;
-            const int x10Duration = rule.durationSeconds * 10;
-            buyBuffX10Buttons[index]->setText(QString("x10  +%1").arg(formatNumber(x10Cost)));
-            buyBuffX10Buttons[index]->setEnabled(game.carats >= x10Cost);
-            buyBuffX10Buttons[index]->setToolTip(QString("%1 for %2s  %3 Carat")
-                                                     .arg(rule.name)
-                                                     .arg(x10Duration)
-                                                     .arg(formatNumber(x10Cost)));
-        }
-
-        if (game.secondCardSlotUnlocked) {
-            slot2BuyButton->setText("Second card slot: unlocked");
-            slot2BuyButton->setEnabled(false);
-        } else {
-            slot2BuyButton->setText(QString("Unlock second card slot  %1 Carat")
-                                        .arg(formatNumber(SecondCardSlotCost)));
-            slot2BuyButton->setEnabled(game.carats >= SecondCardSlotCost);
-        }
-
-        if (game.secondCardSlotUnlocked) {
-            if (game.secondCardPenaltyUpgraded) {
-                penaltyUpgradeButton->setText("Penalty reduced to 33%");
-                penaltyUpgradeButton->setEnabled(false);
-            } else {
-                penaltyUpgradeButton->setText(QString("Reduce penalty 55% → 33%  %1 Carat")
-                                                  .arg(formatNumber(PenaltyUpgradeCost)));
-                penaltyUpgradeButton->setEnabled(game.carats >= PenaltyUpgradeCost);
-            }
-            penaltyUpgradeButton->setVisible(true);
-        } else {
-            penaltyUpgradeButton->setVisible(false);
-        }
-    };
-
-    connect(burnButton, &QPushButton::clicked, this, [this, updateDialog]() {
-        if (game.score < CaratBurnCost) {
-            return;
-        }
-
-        game.score -= CaratBurnCost;
-        game.carats += CaratBurnReward;
-        saveGame();
-        refreshUi();
-        updateDialog();
-    });
-
-    connect(burnX10Button, &QPushButton::clicked, this, [this, updateDialog]() {
-        constexpr qint64 cost = CaratBurnCost * 10;
-        constexpr qint64 reward = CaratBurnReward * 10;
-        if (game.score < cost) {
-            return;
-        }
-
-        game.score -= cost;
-        game.carats += reward;
-        saveGame();
-        refreshUi();
-        updateDialog();
-    });
-
-    connect(slot2BuyButton, &QPushButton::clicked, this, [this, updateDialog]() {
-        if (game.carats < SecondCardSlotCost || game.secondCardSlotUnlocked) {
-            return;
-        }
-
-        game.carats -= SecondCardSlotCost;
-        game.secondCardSlotUnlocked = true;
-        saveGame();
-        refreshUi();
-        updateDialog();
-    });
-
-    connect(penaltyUpgradeButton, &QPushButton::clicked, this, [this, updateDialog]() {
-        if (game.carats < PenaltyUpgradeCost || game.secondCardPenaltyUpgraded) {
-            return;
-        }
-
-        game.carats -= PenaltyUpgradeCost;
-        game.secondCardPenaltyUpgraded = true;
-        saveGame();
-        refreshUi();
-        updateDialog();
-    });
-
-    for (int index = 0; index < TimedBuffCount; ++index) {
-        const auto rule = TimedBuffRules[index];
-        connect(buyBuffButtons[index], &QPushButton::clicked, this, [this, updateDialog, rule]() {
-            if (game.carats < rule.caratCost) {
-                return;
-            }
-
-            game.carats -= rule.caratCost;
-            activateTimedBuff(rule.buff, rule.durationSeconds);
-            saveGame();
-            refreshUi();
-            updateDialog();
-        });
-        connect(buyBuffX10Buttons[index], &QPushButton::clicked, this, [this, updateDialog, rule]() {
-            const qint64 cost = rule.caratCost * 10;
-            const int duration = rule.durationSeconds * 10;
-            if (game.carats < cost) {
-                return;
-            }
-
-            game.carats -= cost;
-            activateTimedBuff(rule.buff, duration);
-            saveGame();
-            refreshUi();
-            updateDialog();
-        });
-    }
-
-    layout->addWidget(balanceBox);
-    layout->addLayout(burnRow);
-    layout->addWidget(buffBox);
-    layout->addWidget(slot2BuyButton);
-    layout->addWidget(penaltyUpgradeButton);
-    layout->addStretch();
-    layout->addWidget(closeButton);
-
-    auto *dialogTimer = new QTimer(dialog);
-    dialogTimer->setInterval(1000);
-    connect(dialogTimer, &QTimer::timeout, dialog, updateDialog);
-    dialogTimer->start();
-
-    updateDialog();
-    dialog->show();
+    (new CaratDialog(this))->show();
 }
 
 void Clicker::showStatistics() {
-    auto *dialog = new QDialog(this);
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle("Qtiker Statistics");
-    dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    dialog->resize(340, 230);
-
-    auto *layout = new QVBoxLayout(dialog);
-    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
-    layout->setSpacing(WindowSpacing);
-
-    auto *title = new QLabel("Statistics", dialog);
-    setFont(title, 13, true);
-
-    auto *statsBox = new QFrame(dialog);
-    statsBox->setFrameShape(QFrame::StyledPanel);
-
-    auto *statsLayout = new QVBoxLayout(statsBox);
-    statsLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-    statsLayout->setSpacing(DialogSpacing);
-
-    auto *totalClicksLabel = new QLabel(
-        QString("Total clicks: %1").arg(formatNumber(game.totalClicks)),
-        statsBox
-    );
-    auto *earnedScoreLabel = new QLabel(
-        QString("Total score earned: %1").arg(formatNumber(game.totalScoreEarned)),
-        statsBox
-    );
-    auto *playTimeLabel = new QLabel(
-        QString("Total play time: %1").arg(formatDuration(currentTotalPlaySeconds())),
-        statsBox
-    );
-    auto *archesLabel = new QLabel(
-        QString("Total Arch's earned: %1").arg(formatNumber(game.totalArchesEarned)),
-        statsBox
-    );
-
-    statsLayout->addWidget(totalClicksLabel);
-    statsLayout->addWidget(earnedScoreLabel);
-    statsLayout->addWidget(playTimeLabel);
-    statsLayout->addWidget(archesLabel);
-
-    auto *uselessBox = new QFrame(dialog);
-    uselessBox->setFrameShape(QFrame::StyledPanel);
-
-    auto *uselessLayout = new QVBoxLayout(uselessBox);
-    uselessLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-    uselessLayout->setSpacing(DialogSpacing);
-
-    auto *uselessTitle = new QLabel("Questionable statistic", uselessBox);
-    setFont(uselessTitle, uselessTitle->font().pointSize(), true);
-
-    auto *rightClicksLabel = new QLabel(
-        QString("Right-clicks on Click button: %1").arg(formatNumber(game.clickButtonRightClicks)),
-        uselessBox
-    );
-
-    uselessLayout->addWidget(uselessTitle);
-    uselessLayout->addWidget(rightClicksLabel);
-
-    auto *closeButton = new QPushButton("Close", dialog);
-    connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
-
-    layout->addWidget(title);
-    layout->addWidget(statsBox);
-    layout->addWidget(uselessBox);
-    layout->addStretch();
-    layout->addWidget(closeButton);
-
-    dialog->show();
+    (new StatisticsDialog(this))->show();
 }
 
 void Clicker::showAssets() {
@@ -961,7 +424,7 @@ void Clicker::showAssets() {
     layout->setSpacing(WindowSpacing);
 
     auto *title = new QLabel("Game Assets", dialog);
-    setFont(title, 13, true);
+    setWidgetFont(title, 13, true);
 
     auto *scrollArea = new QScrollArea(dialog);
     scrollArea->setWidgetResizable(true);
@@ -1005,13 +468,12 @@ void Clicker::showAssets() {
 
         auto *name = new QLabel(file, row);
         name->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        setFont(name, name->font().pointSize(), false);
+        setWidgetFont(name, name->font().pointSize(), false);
 
         QFileInfo fi(path);
-        auto *sizeLabel = new QLabel(
-            QString("%1 B").arg(fi.size()), row);
+        auto *sizeLabel = new QLabel(QString("%1 B").arg(fi.size()), row);
         sizeLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        setFont(sizeLabel, 8, false);
+        setWidgetFont(sizeLabel, 8, false);
 
         rowLayout->addWidget(icon);
         rowLayout->addWidget(name, 1);
@@ -1023,7 +485,7 @@ void Clicker::showAssets() {
     scrollArea->setWidget(scrollContent);
 
     auto *countLabel = new QLabel(QString("Total assets: %1").arg(files.size()), dialog);
-    setFont(countLabel, countLabel->font().pointSize(), true);
+    setWidgetFont(countLabel, countLabel->font().pointSize(), true);
 
     auto *closeButton = new QPushButton("Close", dialog);
     connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
@@ -1071,7 +533,7 @@ void Clicker::buildUi() {
     changelogButton->setIconSize(TopIconSize);
     changelogButton->setToolTip("Release notes");
     changelogButton->setFixedSize(ChangelogButtonSize);
-    setFont(changelogButton, changelogButton->font().pointSize(), true);
+    setWidgetFont(changelogButton, changelogButton->font().pointSize(), true);
     connect(changelogButton, &QPushButton::clicked, this, &Clicker::showChangelog);
 
     infoButton = createTopIconButton("About Qtiker");
@@ -1100,7 +562,7 @@ void Clicker::buildUi() {
 
     scoreLabel = new QLabel(this);
     scoreLabel->setAlignment(Qt::AlignCenter);
-    setFont(scoreLabel, 30, true);
+    setWidgetFont(scoreLabel, 30, true);
 
     auto *statsLayout = new QHBoxLayout();
     statsLayout->setContentsMargins(0, 0, 0, 0);
@@ -1108,15 +570,15 @@ void Clicker::buildUi() {
 
     clickStatsLabel = new QLabel(this);
     clickStatsLabel->setAlignment(Qt::AlignCenter);
-    setFont(clickStatsLabel, clickStatsLabel->font().pointSize(), true);
+    setWidgetFont(clickStatsLabel, clickStatsLabel->font().pointSize(), true);
 
     auto *separator = new QLabel(" · ", this);
     separator->setAlignment(Qt::AlignCenter);
-    setFont(separator, separator->font().pointSize(), true);
+    setWidgetFont(separator, separator->font().pointSize(), true);
 
     incomeStatsLabel = new QLabel(this);
     incomeStatsLabel->setAlignment(Qt::AlignCenter);
-    setFont(incomeStatsLabel, incomeStatsLabel->font().pointSize(), true);
+    setWidgetFont(incomeStatsLabel, incomeStatsLabel->font().pointSize(), true);
 
     statsLayout->addStretch();
     statsLayout->addWidget(clickStatsLabel);
@@ -1128,12 +590,12 @@ void Clicker::buildUi() {
     archLabel->setAlignment(Qt::AlignCenter);
     archLabel->setFrameShape(QFrame::StyledPanel);
     archLabel->setMargin(4);
-    setFont(archLabel, archLabel->font().pointSize(), true);
+    setWidgetFont(archLabel, archLabel->font().pointSize(), true);
 
     clickButton = new QPushButton("Click", this);
     clickButton->setFocusPolicy(Qt::NoFocus);
     clickButton->setMinimumHeight(76);
-    setFont(clickButton, 18, true);
+    setWidgetFont(clickButton, 18, true);
     clickButton->installEventFilter(this);
     connect(clickButton, &QPushButton::clicked, this, &Clicker::makeClick);
 
@@ -1171,7 +633,7 @@ QFrame *Clicker::createUpgradesBox() {
     layout->setSpacing(DialogSpacing);
 
     auto *title = new QLabel("Upgrades", box);
-    setFont(title, title->font().pointSize(), true);
+    setWidgetFont(title, title->font().pointSize(), true);
 
     clickUpgradeButton = new QPushButton(box);
     incomeUpgradeButton = new QPushButton(box);
@@ -1839,39 +1301,6 @@ QString Clicker::formatUpgradeText(const QString &label, int ownedCount, int cos
         .arg(formatNumber(ownedCount), label, formatNumber(cost));
 }
 
-QIcon Clicker::tintedSvgIcon(const QString &path, const QColor &color, const QSize &size) const {
-    QPixmap pixmap(size);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    QSvgRenderer renderer(path);
-    renderer.render(&painter, QRectF(QPointF(0, 0), QSizeF(size)));
-    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-    painter.fillRect(pixmap.rect(), color);
-    painter.end();
-
-    return QIcon(pixmap);
-}
-
-QString Clicker::tintedSvgDataUri(const QString &path, const QColor &color, const QSize &size) const {
-    QImage image(size, QImage::Format_ARGB32_Premultiplied);
-    image.fill(Qt::transparent);
-
-    QPainter painter(&image);
-    QSvgRenderer renderer(path);
-    renderer.render(&painter, QRectF(QPointF(0, 0), QSizeF(size)));
-    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-    painter.fillRect(image.rect(), color);
-    painter.end();
-
-    QByteArray bytes;
-    QBuffer buffer(&bytes);
-    buffer.open(QIODevice::WriteOnly);
-    image.save(&buffer, "PNG");
-
-    return QString("data:image/png;base64,%1").arg(QString::fromLatin1(bytes.toBase64()));
-}
-
 QString Clicker::changelogHtml() const {
     const auto addIcon = tintedSvgDataUri(":/assets/ui/add.svg", QColor("#2e7d32"), QSize(14, 14));
     const auto changedIcon = tintedSvgDataUri(":/assets/ui/changed.svg", QColor("#ef6c00"), QSize(13, 13));
@@ -1910,13 +1339,4 @@ QString Clicker::changelogHtml() const {
     }
 
     return html;
-}
-
-void Clicker::setFont(QWidget *widget, int pointSize, bool bold) {
-    auto font = widget->font();
-    if (pointSize > 0) {
-        font.setPointSize(pointSize);
-    }
-    font.setBold(bold);
-    widget->setFont(font);
 }
