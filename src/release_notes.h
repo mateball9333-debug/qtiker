@@ -21,17 +21,24 @@ struct ChangelogRelease {
     qsizetype entryCount;
 };
 
+inline constexpr ChangelogEntry Changelog024[] = {
+    {ChangelogIcon::Added, "Added x10 to carat purchases."},
+    {ChangelogIcon::Changed, "Renamed gacha button in main menu."},
+    {ChangelogIcon::Added, "Added asset overview."},
+};
+
 inline constexpr ChangelogEntry Changelog023[] = {
     {ChangelogIcon::Added, "Added critical hits with firework particles."},
-    {ChangelogIcon::Added, "Added an easter egg somewhere in Legacy."},
-    {ChangelogIcon::Added, "Added full-size Tux viewer from the About dialog."},
+    {ChangelogIcon::Added, "Added a 10% income buff."},
+    {ChangelogIcon::Added, "Added a Tux viewer."},
+    {ChangelogIcon::Added, "Added some bulk options."},
     {ChangelogIcon::Changed, "Click button now occasionally bashes you with random text."},
 };
 
 inline constexpr ChangelogEntry Changelog022[] = {
     {ChangelogIcon::Added, "Added a second gacha slot for the brave."},
     {ChangelogIcon::Added, "Added spacebar clicks for mouse-haters."},
-    {ChangelogIcon::Added, "Added a carat upgrade to soften the second slot penalty."},
+    {ChangelogIcon::Added, "Added a carat upgrade."},
     {ChangelogIcon::Added, "Added a button."},
     {ChangelogIcon::Added, "Added a logo click."},
     {ChangelogIcon::Changed, "Stats now borrow colors from equipped cards during buffs."},
@@ -51,7 +58,7 @@ inline constexpr ChangelogEntry Changelog020[] = {
     {ChangelogIcon::Added, "Added Arch's and gacha cards."},
     {ChangelogIcon::Added, "Added card inventory, selection, and stacked bonuses."},
     {ChangelogIcon::Added, "Added Carat currency with a small top-bar vault."},
-    {ChangelogIcon::Added, "Added a Carat window with click burning and timed buffs."},
+    {ChangelogIcon::Added, "Added a Carat window."},
     {ChangelogIcon::Added, "Added Legacy 0.1.2 mode for the old clean click loop."},
     {ChangelogIcon::Added, "Added statistics for progress, time, and a few questionable gestures."},
     {ChangelogIcon::Changed, "Improved number formatting and incremental progression."},
@@ -77,6 +84,7 @@ inline constexpr ChangelogEntry Changelog010[] = {
 };
 
 inline constexpr ChangelogRelease ChangelogReleases[] = {
+    {"0.2.4", "2026-06-06", Changelog024, std::size(Changelog024)},
     {"0.2.3", "2026-06-03", Changelog023, std::size(Changelog023)},
     {"0.2.2", "2026-06-03", Changelog022, std::size(Changelog022)},
     {"0.2.1", "2026-06-03", Changelog021, std::size(Changelog021)},

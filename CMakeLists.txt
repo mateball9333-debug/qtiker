@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qtiker VERSION 0.2.1 LANGUAGES CXX)
+project(qtiker VERSION 0.2.4 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CTest)
@@ -49,6 +49,11 @@ qt_add_resources(qtiker "app_resources"
         assets/ui/stat-neutral.svg
         assets/ui/stat-up-double.svg
         assets/ui/stat-up.svg
+        assets/ui/bolt.svg
+        assets/ui/bookmark.svg
+        assets/ui/candle.svg
+        assets/ui/hourglass.svg
+        assets/ui/snowflake.svg
 )
 
 if(BUILD_TESTING)

@@ -1,3 +1,3 @@
 #pragma once
 
-inline constexpr auto AppVersion = "0.2.3";
+inline constexpr auto AppVersion = "0.2.4";

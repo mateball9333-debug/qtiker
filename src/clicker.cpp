@@ -11,9 +11,12 @@
 #include <QCloseEvent>
 #include <QDateTime>
 #include <QDialog>
+#include <QDir>
+#include <QFileInfo>
 #include <QFont>
 #include <QFrame>
 #include <QGraphicsDropShadowEffect>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIODevice>
 #include <QImage>
@@ -24,6 +27,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QRandomGenerator>
 #include <QResizeEvent>
 #include <QSettings>
@@ -150,6 +154,21 @@ bool Clicker::eventFilter(QObject *watched, QEvent *event) {
             saveGame();
             return true;
         }
+    }
+
+    if (watched->property("role") == "statsLink"
+        && (event->type() == QEvent::ApplicationPaletteChange
+            || event->type() == QEvent::PaletteChange
+            || event->type() == QEvent::StyleChange)) {
+        auto *label = qobject_cast<QLabel *>(watched);
+        if (label) {
+            const auto c = label->palette().color(QPalette::WindowText).name();
+            label->setText(QStringLiteral(
+                "<a href='#' style='text-decoration:none; color:%1;'>S</a>tatistics"
+            ).arg(c));
+            label->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
+        }
+        return false;
     }
 
     if (watched->property("role") == "tuxLogo"
@@ -304,8 +323,21 @@ void Clicker::showSettings() {
     statisticsLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
     statisticsLayout->setSpacing(DialogSpacing);
 
-    auto *statisticsText = new QLabel("Statistics", statisticsBox);
+    auto *statisticsText = new QLabel(statisticsBox);
     setFont(statisticsText, statisticsText->font().pointSize(), true);
+    statisticsText->setTextFormat(Qt::RichText);
+    statisticsText->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
+    statisticsText->setProperty("role", "statsLink");
+    statisticsText->installEventFilter(this);
+    const auto refreshLink = [](QLabel *label) {
+        if (!label) return;
+        const auto c = label->palette().color(QPalette::WindowText).name();
+        label->setText(QStringLiteral(
+            "<a href='#' style='text-decoration:none; color:%1;'>S</a>tatistics"
+        ).arg(c));
+    };
+    refreshLink(statisticsText);
+    connect(statisticsText, &QLabel::linkActivated, this, &Clicker::showAssets);
 
     auto *statisticsButton = new QPushButton("Show statistics", statisticsBox);
     statisticsButton->setIcon(tintedSvgIcon(
@@ -631,6 +663,16 @@ void Clicker::showCarat() {
     burnButton->setIcon(QIcon(":/assets/ui/carat.png"));
     burnButton->setIconSize(CaratIconSize);
 
+    auto *burnX10Button = new QPushButton(dialog);
+    burnX10Button->setIcon(QIcon(":/assets/ui/carat.png"));
+    burnX10Button->setIconSize(CaratIconSize);
+
+    auto *burnRow = new QHBoxLayout();
+    burnRow->setContentsMargins(0, 0, 0, 0);
+    burnRow->setSpacing(DialogSpacing);
+    burnRow->addWidget(burnButton, 1);
+    burnRow->addWidget(burnX10Button);
+
     auto *buffBox = new QFrame(dialog);
     buffBox->setFrameShape(QFrame::StyledPanel);
 
@@ -640,6 +682,7 @@ void Clicker::showCarat() {
 
     std::array<QLabel *, TimedBuffCount> buffStatusLabels = {};
     std::array<QPushButton *, TimedBuffCount> buyBuffButtons = {};
+    std::array<QPushButton *, TimedBuffCount> buyBuffX10Buttons = {};
 
     for (int index = 0; index < TimedBuffCount; ++index) {
         const auto &rule = TimedBuffRules[index];
@@ -648,11 +691,24 @@ void Clicker::showCarat() {
         setFont(buffTitle, buffTitle->font().pointSize(), true);
 
         buffStatusLabels[index] = new QLabel(buffBox);
+        buffStatusLabels[index]->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         buyBuffButtons[index] = new QPushButton(buffBox);
+        buyBuffX10Buttons[index] = new QPushButton(buffBox);
 
-        buffLayout->addWidget(buffTitle);
-        buffLayout->addWidget(buffStatusLabels[index]);
-        buffLayout->addWidget(buyBuffButtons[index]);
+        auto *buffHeaderRow = new QHBoxLayout();
+        buffHeaderRow->setContentsMargins(0, 0, 0, 0);
+        buffHeaderRow->setSpacing(DialogSpacing);
+        buffHeaderRow->addWidget(buffTitle);
+        buffHeaderRow->addWidget(buffStatusLabels[index], 1);
+
+        auto *buffButtonRow = new QHBoxLayout();
+        buffButtonRow->setContentsMargins(0, 0, 0, 0);
+        buffButtonRow->setSpacing(DialogSpacing);
+        buffButtonRow->addWidget(buyBuffButtons[index], 1);
+        buffButtonRow->addWidget(buyBuffX10Buttons[index]);
+
+        buffLayout->addLayout(buffHeaderRow);
+        buffLayout->addLayout(buffButtonRow);
     }
 
     auto *closeButton = new QPushButton("Close", dialog);
@@ -661,7 +717,7 @@ void Clicker::showCarat() {
     auto *slot2BuyButton = new QPushButton(dialog);
     auto *penaltyUpgradeButton = new QPushButton(dialog);
 
-    const auto updateDialog = [this, caratBalanceLabel, clickBalanceLabel, burnButton, buffStatusLabels, buyBuffButtons, slot2BuyButton, penaltyUpgradeButton]() {
+    const auto updateDialog = [this, caratBalanceLabel, clickBalanceLabel, burnButton, burnX10Button, buffStatusLabels, buyBuffButtons, buyBuffX10Buttons, slot2BuyButton, penaltyUpgradeButton]() {
         caratBalanceLabel->setText(QString("Carat %1").arg(formatNumber(game.carats)));
         clickBalanceLabel->setText(QString("%1 clicks").arg(formatNumber(game.score)));
 
@@ -669,6 +725,14 @@ void Clicker::showCarat() {
                                 .arg(formatNumber(CaratBurnCost))
                                 .arg(formatNumber(CaratBurnReward)));
         burnButton->setEnabled(game.score >= CaratBurnCost);
+
+        constexpr qint64 burnX10Cost = CaratBurnCost * 10;
+        constexpr qint64 burnX10Reward = CaratBurnReward * 10;
+        burnX10Button->setText(QString("x10  +%1").arg(formatNumber(burnX10Reward)));
+        burnX10Button->setEnabled(game.score >= burnX10Cost);
+        burnX10Button->setToolTip(QString("Burn %1 clicks for %2 Carat")
+                                      .arg(formatNumber(burnX10Cost))
+                                      .arg(formatNumber(burnX10Reward)));
 
         for (int index = 0; index < TimedBuffCount; ++index) {
             const auto &rule = TimedBuffRules[index];
@@ -682,6 +746,15 @@ void Clicker::showCarat() {
                                                .arg(rule.durationSeconds)
                                                .arg(formatNumber(rule.caratCost)));
             buyBuffButtons[index]->setEnabled(game.carats >= rule.caratCost);
+
+            const qint64 x10Cost = rule.caratCost * 10;
+            const int x10Duration = rule.durationSeconds * 10;
+            buyBuffX10Buttons[index]->setText(QString("x10  +%1").arg(formatNumber(x10Cost)));
+            buyBuffX10Buttons[index]->setEnabled(game.carats >= x10Cost);
+            buyBuffX10Buttons[index]->setToolTip(QString("%1 for %2s  %3 Carat")
+                                                     .arg(rule.name)
+                                                     .arg(x10Duration)
+                                                     .arg(formatNumber(x10Cost)));
         }
 
         if (game.secondCardSlotUnlocked) {
@@ -715,6 +788,20 @@ void Clicker::showCarat() {
 
         game.score -= CaratBurnCost;
         game.carats += CaratBurnReward;
+        saveGame();
+        refreshUi();
+        updateDialog();
+    });
+
+    connect(burnX10Button, &QPushButton::clicked, this, [this, updateDialog]() {
+        constexpr qint64 cost = CaratBurnCost * 10;
+        constexpr qint64 reward = CaratBurnReward * 10;
+        if (game.score < cost) {
+            return;
+        }
+
+        game.score -= cost;
+        game.carats += reward;
         saveGame();
         refreshUi();
         updateDialog();
@@ -757,10 +844,23 @@ void Clicker::showCarat() {
             refreshUi();
             updateDialog();
         });
+        connect(buyBuffX10Buttons[index], &QPushButton::clicked, this, [this, updateDialog, rule]() {
+            const qint64 cost = rule.caratCost * 10;
+            const int duration = rule.durationSeconds * 10;
+            if (game.carats < cost) {
+                return;
+            }
+
+            game.carats -= cost;
+            activateTimedBuff(rule.buff, duration);
+            saveGame();
+            refreshUi();
+            updateDialog();
+        });
     }
 
     layout->addWidget(balanceBox);
-    layout->addWidget(burnButton);
+    layout->addLayout(burnRow);
     layout->addWidget(buffBox);
     layout->addWidget(slot2BuyButton);
     layout->addWidget(penaltyUpgradeButton);
@@ -844,6 +944,93 @@ void Clicker::showStatistics() {
     layout->addWidget(statsBox);
     layout->addWidget(uselessBox);
     layout->addStretch();
+    layout->addWidget(closeButton);
+
+    dialog->show();
+}
+
+void Clicker::showAssets() {
+    auto *dialog = new QDialog(this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle("Assets");
+    dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
+    dialog->resize(400, 440);
+
+    auto *layout = new QVBoxLayout(dialog);
+    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
+    layout->setSpacing(WindowSpacing);
+
+    auto *title = new QLabel("Game Assets", dialog);
+    setFont(title, 13, true);
+
+    auto *scrollArea = new QScrollArea(dialog);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::StyledPanel);
+
+    auto *scrollContent = new QWidget(scrollArea);
+    auto *flow = new QVBoxLayout(scrollContent);
+    flow->setSpacing(2);
+    flow->setContentsMargins(4, 4, 4, 4);
+
+    QStringList filters = {"*.svg", "*.png"};
+    QDir assetsDir(":/assets/ui");
+    const auto files = assetsDir.entryList(filters, QDir::Files, QDir::Name);
+
+    for (const auto &file : files) {
+        const QString path = QString(":/assets/ui/%1").arg(file);
+        const bool isSvg = file.endsWith(".svg", Qt::CaseInsensitive);
+
+        auto *row = new QFrame(scrollContent);
+        row->setFrameShape(QFrame::StyledPanel);
+        auto *rowLayout = new QHBoxLayout(row);
+        rowLayout->setContentsMargins(6, 3, 6, 3);
+        rowLayout->setSpacing(8);
+
+        auto *icon = new QLabel(row);
+        icon->setFixedSize(24, 24);
+        icon->setAlignment(Qt::AlignCenter);
+
+        if (isSvg) {
+            QPixmap pixmap(24, 24);
+            pixmap.fill(Qt::transparent);
+            QPainter painter(&pixmap);
+            QSvgRenderer renderer(path);
+            renderer.render(&painter, QRectF(0, 0, 24, 24));
+            painter.end();
+            icon->setPixmap(pixmap);
+        } else {
+            QPixmap pm(path);
+            icon->setPixmap(pm.scaled(24, 24, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        }
+
+        auto *name = new QLabel(file, row);
+        name->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        setFont(name, name->font().pointSize(), false);
+
+        QFileInfo fi(path);
+        auto *sizeLabel = new QLabel(
+            QString("%1 B").arg(fi.size()), row);
+        sizeLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        setFont(sizeLabel, 8, false);
+
+        rowLayout->addWidget(icon);
+        rowLayout->addWidget(name, 1);
+        rowLayout->addWidget(sizeLabel);
+
+        flow->addWidget(row);
+    }
+
+    scrollArea->setWidget(scrollContent);
+
+    auto *countLabel = new QLabel(QString("Total assets: %1").arg(files.size()), dialog);
+    setFont(countLabel, countLabel->font().pointSize(), true);
+
+    auto *closeButton = new QPushButton("Close", dialog);
+    connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
+
+    layout->addWidget(title);
+    layout->addWidget(scrollArea, 1);
+    layout->addWidget(countLabel);
     layout->addWidget(closeButton);
 
     dialog->show();
@@ -1277,7 +1464,7 @@ void Clicker::refreshUi() {
     const int incomeUpgradesBought = game.perSecond > 0 ? game.perSecond : 0;
     clickUpgradeButton->setText(formatUpgradeText("Click +1", clickUpgradesBought, game.clickCost));
     incomeUpgradeButton->setText(formatUpgradeText("Income +1/sec", incomeUpgradesBought, game.incomeCost));
-    gachaButton->setText(QString("Gacha  %1 Arch").arg(formatNumber(1)));
+    gachaButton->setText("Gacha");
 
     clickUpgradeButton->setEnabled(game.score >= game.clickCost);
     incomeUpgradeButton->setEnabled(game.score >= game.incomeCost);

@@ -51,6 +51,7 @@ private slots:
     void selectGachaCard2(GachaDialog *dialog, int index);
     void showCarat();
     void showStatistics();
+    void showAssets();
 
 private:
     enum class TextEffectMode {
