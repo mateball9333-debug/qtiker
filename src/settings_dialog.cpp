@@ -2,16 +2,14 @@
 
 #include "clicker.h"
 #include "game_rules.h"
+#include "save_slots_dialog.h"
 #include "svg_utils.h"
 #include "utils.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QMessageBox>
 #include <QPushButton>
-#include <QRandomGenerator>
 #include <QSettings>
-#include <QTimer>
 #include <QVBoxLayout>
 
 SettingsDialog::SettingsDialog(Clicker *parentClicker)
@@ -29,40 +27,34 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
     auto *title = new QLabel("Settings", this);
     setWidgetFont(title, 13, true);
 
-    auto *resetBox = new QFrame(this);
-    resetBox->setFrameShape(QFrame::StyledPanel);
+    auto *savesBox = new QFrame(this);
+    savesBox->setFrameShape(QFrame::StyledPanel);
 
-    auto *resetLayout = new QHBoxLayout(resetBox);
-    resetLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
-    resetLayout->setSpacing(DialogSpacing);
+    auto *savesLayout = new QHBoxLayout(savesBox);
+    savesLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    savesLayout->setSpacing(DialogSpacing);
 
-    auto *resetText = new QLabel("Reset saved progress", resetBox);
-    setWidgetFont(resetText, resetText->font().pointSize(), true);
+    auto *savesText = new QLabel("Save slots", savesBox);
+    setWidgetFont(savesText, savesText->font().pointSize(), true);
 
-    auto *resetButton = new QPushButton("Reset", resetBox);
-    resetButton->setIcon(tintedSvgIcon(
-        ":/assets/ui/reset.svg",
-        resetButton->palette().color(QPalette::ButtonText),
+    auto *savesButton = new QPushButton(QString("Slot %1").arg(clicker->slotForSettings() + 1), savesBox);
+    savesButton->setIcon(tintedSvgIcon(
+        ":/assets/ui/bookmark.svg",
+        savesButton->palette().color(QPalette::ButtonText),
         TopIconSize
     ));
-    resetButton->setIconSize(TopIconSize);
-    connect(resetButton, &QPushButton::clicked, this, [this]() {
-        auto answer = QMessageBox::question(
-            this,
-            "Reset",
-            "Are you sure you want to delete saved progress?",
-            QMessageBox::Yes | QMessageBox::No,
-            QMessageBox::No
-        );
-        if (answer == QMessageBox::Yes) {
-            clicker->resetGame();
-            accept();
-        }
+    savesButton->setIconSize(TopIconSize);
+    connect(savesButton, &QPushButton::clicked, this, [this, savesButton]() {
+        auto *dlg = new SaveSlotsDialog(clicker);
+        connect(dlg, &SaveSlotsDialog::slotLoaded, this, [this, savesButton]() {
+            savesButton->setText(QString("Slot %1").arg(clicker->slotForSettings() + 1));
+        });
+        dlg->show();
     });
 
-    resetLayout->addWidget(resetText);
-    resetLayout->addStretch();
-    resetLayout->addWidget(resetButton);
+    savesLayout->addWidget(savesText);
+    savesLayout->addStretch();
+    savesLayout->addWidget(savesButton);
 
     auto *statisticsBox = new QFrame(this);
     statisticsBox->setFrameShape(QFrame::StyledPanel);
@@ -154,7 +146,7 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
     connect(closeButton, &QPushButton::clicked, this, &QDialog::accept);
 
     layout->addWidget(title);
-    layout->addWidget(resetBox);
+    layout->addWidget(savesBox);
     layout->addWidget(statisticsBox);
     layout->addWidget(modeBox);
     if (buffBox) {

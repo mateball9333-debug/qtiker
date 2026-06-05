@@ -35,6 +35,8 @@ add_executable(qtiker
     src/carat_dialog.h
     src/statistics_dialog.cpp
     src/statistics_dialog.h
+    src/save_slots_dialog.cpp
+    src/save_slots_dialog.h
 )
 target_link_libraries(qtiker Qt6::Widgets Qt6::Svg)
 qt_add_resources(qtiker "app_resources"

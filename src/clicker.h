@@ -39,6 +39,10 @@ public:
     QString formatDuration(qint64 seconds) const;
     qint64 currentTotalPlaySeconds() const;
 
+    int slotForSettings() const { return currentSlot; }
+    void switchToSlot(int slot);
+    void resetSlot();
+
     GameState game;
 
 signals:
@@ -120,6 +124,7 @@ private:
     void buttonChange();
 
     QElapsedTimer playTimer;
+    int currentSlot = 0;
 
     QLabel *scoreLabel = nullptr;
     QLabel *clickStatsLabel = nullptr;

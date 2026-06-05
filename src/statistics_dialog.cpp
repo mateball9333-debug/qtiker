@@ -74,13 +74,9 @@ StatisticsDialog::StatisticsDialog(Clicker *parentClicker)
     auto *closeButton = new QPushButton("Close", this);
     connect(closeButton, &QPushButton::clicked, this, &QDialog::accept);
 
-    auto *assetsButton = new QPushButton("Browse assets", this);
-    connect(assetsButton, &QPushButton::clicked, clicker, &Clicker::showAssets);
-
     layout->addWidget(title);
     layout->addWidget(statsBox);
     layout->addWidget(uselessBox);
-    layout->addWidget(assetsButton);
     layout->addStretch();
     layout->addWidget(closeButton);
 }

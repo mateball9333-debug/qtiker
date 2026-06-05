@@ -92,11 +92,28 @@ constexpr auto LegacyClickUpgradeCost = "clickUpgradeCost";
 constexpr auto LegacyAutoUpgradeCost = "autoUpgradeCost";
 constexpr auto LegacyTotalClicks = "totalClicks";
 constexpr auto LegacyTotalClickScoreEarned = "totalClickScoreEarned";
+constexpr auto CurrentSlot = "currentSlot";
 }
 }
 
 Clicker::Clicker(QWidget *parent) : QWidget(parent) {
     setupWindow();
+    {
+        QSettings meta("qtiker", "qtiker");
+        currentSlot = meta.value(SettingsKeys::CurrentSlot, 0).toInt();
+        const bool hasRootData = meta.contains(SettingsKeys::Score);
+        const bool hasSlotData = meta.contains(QString("slot0/%1").arg(SettingsKeys::Score));
+        if (hasRootData && !hasSlotData) {
+            for (int s = 0; s < 3; ++s) {
+                const bool occupied = meta.contains(QString("slot%1/%2").arg(s).arg(SettingsKeys::Score));
+                if (!occupied) {
+                    currentSlot = s;
+                    break;
+                }
+            }
+        }
+        meta.setValue(SettingsKeys::CurrentSlot, currentSlot);
+    }
     loadGame();
     playTimer.start();
     buildUi();
@@ -251,6 +268,27 @@ void Clicker::addPassiveIncome() {
 }
 
 void Clicker::resetGame() {
+    game.reset();
+    saveGame();
+    refreshUi();
+}
+
+void Clicker::switchToSlot(int slot) {
+    if (slot < 0 || slot > 2 || slot == currentSlot)
+        return;
+
+    saveGame();
+    game.reset();
+    currentSlot = slot;
+    {
+        QSettings meta("qtiker", "qtiker");
+        meta.setValue("currentSlot", currentSlot);
+    }
+    loadGame();
+    refreshUi();
+}
+
+void Clicker::resetSlot() {
     game.reset();
     saveGame();
     refreshUi();
@@ -934,33 +972,24 @@ void Clicker::refreshUi() {
 
 void Clicker::loadGame() {
     QSettings settings("qtiker", "qtiker");
-    game.score = settings.value(SettingsKeys::Score, game.score).toLongLong();
-    game.archProgress = settings.value(
-        SettingsKeys::ArchProgress,
-        settings.value(SettingsKeys::LegacyTotalClicks, game.archProgress)
-    ).toLongLong();
+    settings.beginGroup(QString("slot%1").arg(currentSlot));
+
+    game.score = settings.value(SettingsKeys::Score,
+        settings.value(SettingsKeys::LegacyTotalClicks, game.score)).toLongLong();
+    game.archProgress = settings.value(SettingsKeys::ArchProgress, game.archProgress).toLongLong();
     game.nextArchAt = settings.value(SettingsKeys::NextArchAt, game.nextArchAt).toLongLong();
-    game.perClick = settings.value(
-        SettingsKeys::PerClick,
-        settings.value(SettingsKeys::LegacyClickPower, game.perClick)
-    ).toInt();
-    game.perSecond = settings.value(
-        SettingsKeys::PerSecond,
-        settings.value(SettingsKeys::LegacyAutoPower, game.perSecond)
-    ).toInt();
+    game.perClick = settings.value(SettingsKeys::PerClick,
+        settings.value(SettingsKeys::LegacyClickPower, game.perClick)).toInt();
+    game.perSecond = settings.value(SettingsKeys::PerSecond,
+        settings.value(SettingsKeys::LegacyAutoPower, game.perSecond)).toInt();
     game.arches = settings.value(SettingsKeys::Arches, game.arches).toInt();
     game.carats = settings.value(SettingsKeys::Carats, game.carats).toLongLong();
     game.totalClicks = settings.value(SettingsKeys::TotalClicks, game.totalClicks).toLongLong();
-    game.totalScoreEarned = settings.value(
-        SettingsKeys::TotalScoreEarned,
-        settings.value(SettingsKeys::LegacyTotalClickScoreEarned, game.totalScoreEarned)
-    ).toLongLong();
+    game.totalScoreEarned = settings.value(SettingsKeys::TotalScoreEarned,
+        settings.value(SettingsKeys::LegacyTotalClickScoreEarned, game.totalScoreEarned)).toLongLong();
     game.totalPlaySeconds = settings.value(SettingsKeys::TotalPlaySeconds, game.totalPlaySeconds).toLongLong();
     game.totalArchesEarned = settings.value(SettingsKeys::TotalArchesEarned, game.totalArchesEarned).toLongLong();
-    game.clickButtonRightClicks = settings.value(
-        SettingsKeys::ClickButtonRightClicks,
-        game.clickButtonRightClicks
-    ).toLongLong();
+    game.clickButtonRightClicks = settings.value(SettingsKeys::ClickButtonRightClicks, game.clickButtonRightClicks).toLongLong();
     for (int index = 0; index < TimedBuffCount; ++index) {
         game.buffExpiresAtMs[index] = settings.value(
             QString("%1%2").arg(SettingsKeys::BuffExpiresAtPrefix).arg(index),
@@ -974,42 +1003,36 @@ void Clicker::loadGame() {
     for (int index = 0; index < GachaCardCount; ++index) {
         game.cardCounts[index] = settings.value(QString("card%1").arg(index), game.cardCounts[index]).toInt();
     }
+    game.clickCost = settings.value(SettingsKeys::ClickCost,
+        settings.value(SettingsKeys::LegacyClickUpgradeCost, game.clickCost)).toInt();
+    game.incomeCost = settings.value(SettingsKeys::IncomeCost,
+        settings.value(SettingsKeys::LegacyAutoUpgradeCost, game.incomeCost)).toInt();
+    game.incomeBuffEasterEgg = settings.value(SettingsKeys::IncomeBuffEasterEgg, game.incomeBuffEasterEgg).toBool();
+    changelogSeenForVersion = settings.value(
+        SettingsKeys::LastSeenChangelogVersion, QString()
+    ).toString() == AppVersion;
+
+    settings.endGroup();
 
     if (game.selectedCard < 0
         || game.selectedCard >= GachaCardCount
         || game.cardCounts[game.selectedCard] <= 0) {
         game.selectedCard = -1;
     }
-
     if (game.selectedCard2 < 0
         || game.selectedCard2 >= GachaCardCount
         || game.cardCounts[game.selectedCard2] <= 0) {
         game.selectedCard2 = -1;
     }
-
     if (!game.secondCardSlotUnlocked) {
         game.selectedCard2 = -1;
     }
-
-    game.clickCost = settings.value(
-        SettingsKeys::ClickCost,
-        settings.value(SettingsKeys::LegacyClickUpgradeCost, game.clickCost)
-    ).toInt();
-    game.incomeCost = settings.value(
-        SettingsKeys::IncomeCost,
-        settings.value(SettingsKeys::LegacyAutoUpgradeCost, game.incomeCost)
-    ).toInt();
-    game.incomeBuffEasterEgg = settings.value(
-        SettingsKeys::IncomeBuffEasterEgg, game.incomeBuffEasterEgg
-    ).toBool();
-    changelogSeenForVersion = settings.value(
-        SettingsKeys::LastSeenChangelogVersion,
-        QString()
-    ).toString() == AppVersion;
 }
 
 void Clicker::saveGame() {
     QSettings settings("qtiker", "qtiker");
+    settings.beginGroup(QString("slot%1").arg(currentSlot));
+
     game.totalPlaySeconds = currentTotalPlaySeconds();
     playTimer.restart();
 
@@ -1041,6 +1064,8 @@ void Clicker::saveGame() {
     settings.setValue(SettingsKeys::ClickCost, game.clickCost);
     settings.setValue(SettingsKeys::IncomeCost, game.incomeCost);
     settings.setValue(SettingsKeys::IncomeBuffEasterEgg, game.incomeBuffEasterEgg);
+
+    settings.endGroup();
 }
 
 qint64 Clicker::currentTotalPlaySeconds() const {
