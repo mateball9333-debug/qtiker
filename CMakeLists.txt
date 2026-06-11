@@ -72,6 +72,8 @@ qt_add_resources(qtiker "app_resources"
         assets/sound/burn.wav
         assets/sound/buff.wav
         assets/sound/unlock.wav
+        assets/かかかかかかかかかかかかかかかかかかかかかかかかかかかか/R.txt
+        assets/かかかかかかかかかかかかかかかかかかかかかかかかかかかか/ᗜˬᗜ.txt
 )
 
 if(BUILD_TESTING)

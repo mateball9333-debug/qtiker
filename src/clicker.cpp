@@ -14,6 +14,7 @@
 
 #include <QApplication>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDateTime>
 #include <QDialog>
 #include <QDir>
@@ -128,6 +129,9 @@ Clicker::Clicker(QWidget *parent) : QWidget(parent) {
     auto *spaceShortcut = new QShortcut(QKeySequence(Qt::Key_Space), this);
     spaceShortcut->setAutoRepeat(false);
     connect(spaceShortcut, &QShortcut::activated, this, &Clicker::makeClick);
+
+    auto *loreShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_L), this);
+    connect(loreShortcut, &QShortcut::activated, this, &Clicker::showLore);
 }
 
 void Clicker::changeEvent(QEvent *event) {
@@ -471,6 +475,87 @@ void Clicker::showGacha() {
 
 void Clicker::showCarat() {
     (new CaratDialog(this))->show();
+}
+
+void Clicker::showLore() {
+    const QString loreDir = ":/assets/\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B";
+    QDir dir(loreDir);
+    const auto files = dir.entryList({"*.txt"}, QDir::Files, QDir::Name);
+
+    if (files.isEmpty())
+        return;
+
+    struct LoreEntry {
+        QString displayName;
+        QString content;
+    };
+    QList<LoreEntry> entries;
+
+    for (const auto &file : files) {
+        QFile f(QString("%1/%2").arg(loreDir, file));
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+
+        const QString raw = QString::fromUtf8(f.readAll());
+        f.close();
+
+        const qsizetype startIdx = raw.indexOf("<<START>>");
+        const qsizetype exitIdx = raw.indexOf("<<EXIT>>", startIdx >= 0 ? startIdx : 0);
+        if (startIdx < 0 || exitIdx < 0)
+            continue;
+
+        const QString content = raw.mid(startIdx + 9, exitIdx - startIdx - 9).trimmed();
+        QString displayName = file;
+        displayName.chop(4);
+
+        LoreEntry entry;
+        entry.displayName = displayName;
+        entry.content = content;
+        entries.append(entry);
+    }
+
+    auto *dialog = new QDialog(this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle("\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B");
+    dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
+    dialog->resize(380, 420);
+
+    auto *layout = new QVBoxLayout(dialog);
+    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
+    layout->setSpacing(WindowSpacing);
+
+    auto *tabs = new QComboBox(dialog);
+    for (const auto &e : entries)
+        tabs->addItem(e.displayName);
+
+    auto *textView = new QTextBrowser(dialog);
+    textView->setFont(QFont("monospace", 11));
+    textView->setOpenExternalLinks(false);
+    textView->setStyleSheet(
+        "QTextBrowser {"
+        "  border: 1px solid palette(midlight);"
+        "  border-radius: 6px;"
+        "  padding: 8px;"
+        "  background: palette(base);"
+        "}"
+    );
+
+    if (!entries.isEmpty())
+        textView->setPlainText(entries.first().content);
+
+    connect(tabs, &QComboBox::currentIndexChanged, dialog, [&entries, textView](int idx) {
+        if (idx >= 0 && idx < entries.size())
+            textView->setPlainText(entries.at(idx).content);
+    });
+
+    auto *closeButton = new QPushButton("Close", dialog);
+    connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
+
+    layout->addWidget(tabs);
+    layout->addWidget(textView, 1);
+    layout->addWidget(closeButton);
+
+    dialog->show();
 }
 
 void Clicker::showStatistics() {
