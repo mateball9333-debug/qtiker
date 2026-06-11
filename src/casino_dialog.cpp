@@ -42,7 +42,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle(QStringLiteral("\u8CED\u3051"));
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    setFixedSize(320, 460);
+    setFixedSize(320, 500);
 
     payLines = {
         {{0,0,0,0,0}, QColor("#f9a825")},   // top
@@ -110,6 +110,21 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     betRow->addWidget(maxBetButton);
     L->addLayout(betRow);
 
+    auto *presetRow = new QHBoxLayout();
+    presetRow->setSpacing(4);
+    for (qint64 v : {10, 50, 100, 500, 1000, 5000}) {
+        auto *btn = new QPushButton(fmtScore(v), this);
+        btn->setFixedHeight(26);
+        connect(btn, &QPushButton::clicked, this, [this, v]() {
+            if (spinning) return;
+            betAmount = v;
+            updateUi();
+        });
+        presetButtons.append(btn);
+        presetRow->addWidget(btn);
+    }
+    L->addLayout(presetRow);
+
     spinButton = new QPushButton(QStringLiteral("\u30B9\u30D4\u30F3"), this);
     spinButton->setMinimumHeight(36);
     L->addWidget(spinButton);
@@ -169,6 +184,8 @@ void CasinoDialog::updateUi() {
     betDownButton->setEnabled(!spinning);
     betUpButton->setEnabled(!spinning);
     maxBetButton->setEnabled(!spinning);
+    for (auto *b : presetButtons)
+        b->setEnabled(!spinning);
     spinButton->setText(spinning ? "..." : QStringLiteral("\u30B9\u30D4\u30F3"));
 }
 

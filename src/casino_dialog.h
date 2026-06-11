@@ -40,6 +40,7 @@ private:
     QPushButton *betUpButton = nullptr;
     QPushButton *betDownButton = nullptr;
     QPushButton *maxBetButton = nullptr;
+    QList<QPushButton *> presetButtons;
 
     QLabel *gridLabels[5][3] = {};
 
