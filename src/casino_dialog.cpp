@@ -21,9 +21,9 @@ const QString Symbols[SymbolCount] = {
     QStringLiteral("\u25CF"),
 };
 constexpr int WildIndex = 0;
-const int Payouts3[SymbolCount] = {2, 1, 1, 1, 0, 0, 0};
-const int Payouts4[SymbolCount] = {5, 3, 2, 2, 1, 1, 1};
-const int Payouts5[SymbolCount] = {25, 10, 8, 5, 4, 3, 2};
+const int Payouts3[SymbolCount] = {1, 1, 1, 0, 0, 0, 0};
+const int Payouts4[SymbolCount] = {4, 2, 1, 1, 0, 0, 0};
+const int Payouts5[SymbolCount] = {20, 8, 6, 4, 3, 2, 1};
 constexpr qint64 MinBet = 10;
 constexpr qint64 BetStep = 10;
 
