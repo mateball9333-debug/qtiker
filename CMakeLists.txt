@@ -62,7 +62,7 @@ qt_add_resources(qtiker "app_resources"
         assets/ui/stat-up-double.svg
         assets/ui/stat-up.svg
         assets/ui/bolt.svg
-        assets/ui/bookmark.svg
+        assets/ui/save.svg
         assets/ui/candle.svg
         assets/ui/hourglass.svg
         assets/ui/snowflake.svg

@@ -6,6 +6,7 @@
 #include "svg_utils.h"
 #include "utils.h"
 
+#include <QCheckBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -19,7 +20,7 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle("Qtiker Settings");
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    resize(320, 220);
+    resize(320, 240);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
@@ -157,9 +158,13 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
     auto *volumeBox = new QFrame(this);
     volumeBox->setFrameShape(QFrame::StyledPanel);
 
-    auto *volumeLayout = new QHBoxLayout(volumeBox);
+    auto *volumeLayout = new QVBoxLayout(volumeBox);
     volumeLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
     volumeLayout->setSpacing(DialogSpacing);
+
+    auto *volumeRow = new QHBoxLayout();
+    volumeRow->setContentsMargins(0, 0, 0, 0);
+    volumeRow->setSpacing(DialogSpacing);
 
     auto *volumeText = new QLabel("Volume", volumeBox);
     setWidgetFont(volumeText, volumeText->font().pointSize(), true);
@@ -171,8 +176,17 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
         clicker->setMasterVolume(value / 100.0);
     });
 
-    volumeLayout->addWidget(volumeText);
-    volumeLayout->addWidget(volumeSlider, 1);
+    volumeRow->addWidget(volumeText);
+    volumeRow->addWidget(volumeSlider, 1);
+
+    muteClicksCheck = new QCheckBox("Mute click sound", volumeBox);
+    muteClicksCheck->setChecked(clicker->isClickSoundMuted());
+    connect(muteClicksCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        clicker->setClickSoundMuted(checked);
+    });
+
+    volumeLayout->addLayout(volumeRow);
+    volumeLayout->addWidget(muteClicksCheck);
 
     layout->addWidget(volumeBox);
     layout->addStretch();

@@ -3,6 +3,7 @@
 #include <QDialog>
 
 class Clicker;
+class QCheckBox;
 class QSlider;
 
 class SettingsDialog : public QDialog {
@@ -14,4 +15,5 @@ public:
 private:
     Clicker *clicker;
     QSlider *volumeSlider = nullptr;
+    QCheckBox *muteClicksCheck = nullptr;
 };

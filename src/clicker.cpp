@@ -242,7 +242,7 @@ void Clicker::makeClick() {
     game.totalScoreEarned += earned;
     addArchProgress(earned);
 
-    if (clickSound) {
+    if (clickSound && !isClickSoundMuted()) {
         clickSound->play();
     }
 
@@ -1481,6 +1481,14 @@ void Clicker::setMasterVolume(qreal volume) {
 
 qreal Clicker::masterVolume() const {
     return m_masterVolume;
+}
+
+void Clicker::setClickSoundMuted(bool muted) {
+    QSettings("qtiker", "qtiker").setValue("muteClickSound", muted);
+}
+
+bool Clicker::isClickSoundMuted() const {
+    return QSettings("qtiker", "qtiker").value("muteClickSound", false).toBool();
 }
 
 QString Clicker::changelogHtml() const {

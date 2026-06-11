@@ -48,6 +48,8 @@ public:
     void resetSlot();
     void setMasterVolume(qreal volume);
     qreal masterVolume() const;
+    void setClickSoundMuted(bool muted);
+    bool isClickSoundMuted() const;
 
     GameState game;
 
