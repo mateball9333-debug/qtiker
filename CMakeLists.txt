@@ -4,7 +4,7 @@ project(qtiker VERSION 0.2.4 LANGUAGES CXX)
 include(GNUInstallDirs)
 include(CTest)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Svg)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Svg Multimedia)
 qt_standard_project_setup()
 
 configure_file(qtiker.desktop.in qtiker.desktop @ONLY)
@@ -37,8 +37,10 @@ add_executable(qtiker
     src/statistics_dialog.h
     src/save_slots_dialog.cpp
     src/save_slots_dialog.h
+    src/status_bar.cpp
+    src/status_bar.h
 )
-target_link_libraries(qtiker Qt6::Widgets Qt6::Svg)
+target_link_libraries(qtiker Qt6::Widgets Qt6::Svg Qt6::Multimedia)
 qt_add_resources(qtiker "app_resources"
     PREFIX "/"
     FILES
@@ -64,6 +66,7 @@ qt_add_resources(qtiker "app_resources"
         assets/ui/candle.svg
         assets/ui/hourglass.svg
         assets/ui/snowflake.svg
+        assets/sound/click.wav
 )
 
 if(BUILD_TESTING)

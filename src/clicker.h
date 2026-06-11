@@ -6,6 +6,7 @@
 #include <QElapsedTimer>
 #include <QIcon>
 #include <QSize>
+#include <QSoundEffect>
 #include <QString>
 #include <QWidget>
 
@@ -152,6 +153,7 @@ private:
     QTimer *statsBuffGlowTimer = nullptr;
     QGraphicsDropShadowEffect *clickGlowEffect = nullptr;
     QGraphicsDropShadowEffect *changelogGlowEffect = nullptr;
+    QSoundEffect *clickSound = nullptr;
     ParticleOverlay *particleOverlay = nullptr;
     int clickEffectFramesLeft = 0;
     int clickEffectHue = 0;

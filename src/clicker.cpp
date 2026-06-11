@@ -35,6 +35,7 @@
 #include <QResizeEvent>
 #include <QSettings>
 #include <QShortcut>
+#include <QSoundEffect>
 #include <QSvgRenderer>
 #include <QTextBrowser>
 #include <QTimer>
@@ -237,6 +238,10 @@ void Clicker::makeClick() {
     game.totalClicks += 1;
     game.totalScoreEarned += earned;
     addArchProgress(earned);
+
+    if (clickSound) {
+        clickSound->play();
+    }
 
     buttonChange();
     saveGame();
@@ -655,6 +660,10 @@ void Clicker::buildUi() {
     connect(clickButton, &QPushButton::clicked, this, &Clicker::makeClick);
 
     particleOverlay = new ParticleOverlay(this);
+
+    clickSound = new QSoundEffect(this);
+    clickSound->setSource(QUrl("qrc:/assets/sound/click.wav"));
+    clickSound->setVolume(0.4);
 
     gachaButton = new QPushButton("Gacha", this);
     gachaButton->setMinimumHeight(32);
