@@ -21,9 +21,9 @@ const QString Symbols[SymbolCount] = {
     QStringLiteral("\u25CF"),
 };
 constexpr int WildIndex = 0;
-const int Payouts3[SymbolCount] = {5,3,2,2,1,1,1};
-const int Payouts4[SymbolCount] = {25,10,8,6,5,4,3};
-const int Payouts5[SymbolCount] = {100,40,30,20,15,10,8};
+const int Payouts3[SymbolCount] = {3, 2, 1, 1, 1, 1, 1};
+const int Payouts4[SymbolCount] = {10, 5, 4, 3, 2, 2, 1};
+const int Payouts5[SymbolCount] = {50, 20, 15, 10, 8, 5, 3};
 constexpr qint64 MinBet = 10;
 constexpr qint64 BetStep = 10;
 
@@ -193,11 +193,6 @@ void CasinoDialog::stopReel(int reel) {
     if (reel >= 5) {
         spinTimer->stop();
         spinning = false;
-
-        // ~30% chance to force a win
-        if (QRandomGenerator::global()->bounded(100) < 30)
-            forceWin();
-
         evaluateAndShow();
         clicker->saveGame();
         clicker->refreshUi();
@@ -213,7 +208,7 @@ void CasinoDialog::forceWin() {
     const int lineIdx = rg->bounded(payLines.size());
     const auto &line = payLines[lineIdx];
     const int sym = rg->bounded(1, SymbolCount);
-    const int length = rg->bounded(3, 6); // 3-5
+    const int length = rg->bounded(3, 6);
 
     for (int c = 0; c < length; ++c) {
         reels[c][line.cols[c]] = sym;
