@@ -79,6 +79,7 @@ private slots:
     void selectGachaCard(GachaDialog *dialog, int index);
     void selectGachaCard2(GachaDialog *dialog, int index);
     void showCarat();
+    void showCasino();
     void showLore();
 
 private:
@@ -152,6 +153,7 @@ private:
     QPushButton *settingsButton = nullptr;
     QPushButton *clickButton = nullptr;
     QPushButton *gachaButton = nullptr;
+    QPushButton *casinoButton = nullptr;
     QPushButton *clickUpgradeButton = nullptr;
     QPushButton *incomeUpgradeButton = nullptr;
     QTimer *incomeTimer = nullptr;

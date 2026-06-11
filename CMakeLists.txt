@@ -37,6 +37,8 @@ add_executable(qtiker
     src/statistics_dialog.h
     src/save_slots_dialog.cpp
     src/save_slots_dialog.h
+    src/casino_dialog.cpp
+    src/casino_dialog.h
     src/status_bar.cpp
     src/status_bar.h
 )

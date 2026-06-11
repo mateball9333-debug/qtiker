@@ -1,6 +1,7 @@
 #include "clicker.h"
 
 #include "appversion.h"
+#include "casino_dialog.h"
 #include "carat_dialog.h"
 #include "gacha_dialog.h"
 #include "game_rules.h"
@@ -478,6 +479,10 @@ void Clicker::showCarat() {
     (new CaratDialog(this))->show();
 }
 
+void Clicker::showCasino() {
+    (new CasinoDialog(this))->show();
+}
+
 void Clicker::showLore() {
     const QString loreDir = ":/assets/\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B";
     QDir dir(loreDir);
@@ -824,6 +829,10 @@ void Clicker::buildUi() {
     gachaButton->setMinimumHeight(32);
     connect(gachaButton, &QPushButton::clicked, this, &Clicker::showGacha);
 
+    casinoButton = new QPushButton(QStringLiteral("\u8CED\u3051"), this);
+    casinoButton->setMinimumHeight(32);
+    connect(casinoButton, &QPushButton::clicked, this, &Clicker::showCasino);
+
     auto *upgradesBox = createUpgradesBox();
 
     auto *statusSeparator = new QFrame(this);
@@ -841,6 +850,7 @@ void Clicker::buildUi() {
     mainLayout->addWidget(archLabel);
     mainLayout->addWidget(clickButton, 1);
     mainLayout->addWidget(gachaButton);
+    mainLayout->addWidget(casinoButton);
     mainLayout->addWidget(upgradesBox);
     mainLayout->addWidget(statusSeparator);
     mainLayout->addWidget(statusBar);
