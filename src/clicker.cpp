@@ -519,7 +519,7 @@ void Clicker::showLore() {
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setWindowTitle("\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B");
     dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    dialog->resize(380, 420);
+    dialog->resize(480, 420);
 
     auto *layout = new QVBoxLayout(dialog);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
