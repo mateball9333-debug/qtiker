@@ -50,7 +50,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle(QStringLiteral("\u8CED\u3051"));
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    resize(340, 430);
+    resize(360, 480);
 
     payLines = {
         {{0,0,0,0,0}, QColor("#f9a825")},   // top
@@ -83,9 +83,9 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
         for (int row = 0; row < VisibleRows; ++row) {
             auto *cell = new QLabel(Symbols[0], gridBox);
             cell->setAlignment(Qt::AlignCenter);
-            cell->setFixedSize(52, 52);
+            cell->setFixedSize(48, 48);
             auto f = cell->font();
-            f.setPointSize(22);
+            f.setPointSize(20);
             cell->setFont(f);
             cell->setStyleSheet("QLabel { background: palette(base); border-radius: 6px; }");
             gridLabels[col][row] = cell;
@@ -117,7 +117,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
     betRow->addWidget(maxBetButton);
 
     spinButton = new QPushButton(QStringLiteral("\u30B9\u30D4\u30F3"), this);
-    spinButton->setMinimumHeight(40);
+    spinButton->setMinimumHeight(36);
     auto sf = spinButton->font();
     sf.setPointSize(16);
     sf.setBold(true);
