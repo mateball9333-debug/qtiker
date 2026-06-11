@@ -21,9 +21,9 @@ const QString Symbols[SymbolCount] = {
     QStringLiteral("\u25CF"),
 };
 constexpr int WildIndex = 0;
-const int Payouts3[SymbolCount] = {3, 2, 1, 1, 1, 1, 1};
-const int Payouts4[SymbolCount] = {10, 5, 4, 3, 2, 2, 1};
-const int Payouts5[SymbolCount] = {50, 20, 15, 10, 8, 5, 3};
+const int Payouts3[SymbolCount] = {2, 1, 1, 1, 0, 0, 0};
+const int Payouts4[SymbolCount] = {5, 3, 2, 2, 1, 1, 1};
+const int Payouts5[SymbolCount] = {25, 10, 8, 5, 4, 3, 2};
 constexpr qint64 MinBet = 10;
 constexpr qint64 BetStep = 10;
 
@@ -45,14 +45,14 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     setFixedSize(320, 500);
 
     payLines = {
-        {{0,0,0,0,0}, QColor("#f9a825")},   // top
-        {{1,1,1,1,1}, QColor("#ef6c00")},   // middle
-        {{2,2,2,2,2}, QColor("#6a1b9a")},   // bottom
-        {{0,0,1,2,2}, QColor("#2e7d32")},   // stair up
-        {{2,2,1,0,0}, QColor("#1565c0")},   // stair down
-        {{1,0,0,0,1}, QColor("#c62828")},   // V wide
-        {{1,2,2,2,1}, QColor("#00838f")},   // ^ wide
-        {{0,1,2,1,0}, QColor("#6d4c41")},   // diamond
+        {{0,0,0,0,0}, QColor("#f9a825")},
+        {{1,1,1,1,1}, QColor("#ef6c00")},
+        {{2,2,2,2,2}, QColor("#6a1b9a")},
+        {{0,0,1,2,2}, QColor("#2e7d32")},
+        {{2,2,1,0,0}, QColor("#1565c0")},
+        {{1,0,0,0,1}, QColor("#c62828")},
+        {{1,2,2,2,1}, QColor("#00838f")},
+        {{0,1,2,1,0}, QColor("#6d4c41")},
     };
 
     auto *L = new QVBoxLayout(this);
