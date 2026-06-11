@@ -39,5 +39,14 @@ int main() {
     require(game.incomeBuffEasterEgg == false);
     require(SecondCardSlotCost == 25);
 
+    const auto defaultChecksum = game.computeChecksum();
+    game.score = 100;
+    const auto modifiedChecksum = game.computeChecksum();
+    require(defaultChecksum != modifiedChecksum);
+
+    GameState copy;
+    copy.score = 100;
+    require(copy.computeChecksum() == modifiedChecksum);
+
     return 0;
 }

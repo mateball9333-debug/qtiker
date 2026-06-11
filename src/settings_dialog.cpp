@@ -20,7 +20,7 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle("Qtiker Settings");
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    resize(320, 240);
+    resize(320, 260);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
@@ -185,8 +185,15 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
         clicker->setClickSoundMuted(checked);
     });
 
+    muteCritCheck = new QCheckBox("Mute crit sound", volumeBox);
+    muteCritCheck->setChecked(clicker->isCritSoundMuted());
+    connect(muteCritCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        clicker->setCritSoundMuted(checked);
+    });
+
     volumeLayout->addLayout(volumeRow);
     volumeLayout->addWidget(muteClicksCheck);
+    volumeLayout->addWidget(muteCritCheck);
 
     layout->addWidget(volumeBox);
     layout->addStretch();

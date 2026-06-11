@@ -50,6 +50,8 @@ public:
     qreal masterVolume() const;
     void setClickSoundMuted(bool muted);
     bool isClickSoundMuted() const;
+    void setCritSoundMuted(bool muted);
+    bool isCritSoundMuted() const;
 
     GameState game;
 

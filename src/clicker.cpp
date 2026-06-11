@@ -228,11 +228,11 @@ void Clicker::makeClick() {
     if (roll < 1) {
         earned = buffed * 5;
         triggerCritBurst(true);
-        if (critSound) critSound->play();
+        if (critSound && !isCritSoundMuted()) critSound->play();
     } else if (roll < 6) {
         earned = buffed * 2;
         triggerCritBurst(false);
-        if (critSound) critSound->play();
+        if (critSound && !isCritSoundMuted()) critSound->play();
     } else {
         earned = buffed;
     }
@@ -1489,6 +1489,14 @@ void Clicker::setClickSoundMuted(bool muted) {
 
 bool Clicker::isClickSoundMuted() const {
     return QSettings("qtiker", "qtiker").value("muteClickSound", false).toBool();
+}
+
+void Clicker::setCritSoundMuted(bool muted) {
+    QSettings("qtiker", "qtiker").setValue("muteCritSound", muted);
+}
+
+bool Clicker::isCritSoundMuted() const {
+    return QSettings("qtiker", "qtiker").value("muteCritSound", false).toBool();
 }
 
 QString Clicker::changelogHtml() const {

@@ -16,4 +16,5 @@ private:
     Clicker *clicker;
     QSlider *volumeSlider = nullptr;
     QCheckBox *muteClicksCheck = nullptr;
+    QCheckBox *muteCritCheck = nullptr;
 };
