@@ -47,6 +47,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     : QDialog(parent), clicker(parentClicker)
 {
     setAttribute(Qt::WA_DeleteOnClose);
+    setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
     setWindowTitle(QStringLiteral("\u8CED\u3051"));
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
 
@@ -58,7 +59,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
         {{2,1,0,1,2}, QColor("#1565c0")},   // ^
     };
 
-    auto *layout = new QVBoxLayout(this);
+    auto *layout = new QVBoxLayout();
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
     layout->setSpacing(6);
 
@@ -74,8 +75,6 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
 
     auto *gridBox = new QFrame(this);
     gridBox->setFrameShape(QFrame::StyledPanel);
-    gridBox->setStyleSheet("QFrame#casinoGrid { background: palette(dark); border-radius: 6px; }");
-    gridBox->setObjectName("casinoGrid");
     auto *gridBoxLayout = new QVBoxLayout(gridBox);
     gridBoxLayout->setSpacing(3);
     gridBoxLayout->setContentsMargins(6, 6, 6, 6);
@@ -173,6 +172,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
 
     setMinimumSize(360, 480);
     resize(360, 480);
+    setLayout(layout);
     updateUi();
 }
 
