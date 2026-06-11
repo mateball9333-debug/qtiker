@@ -18,7 +18,7 @@ class CasinoDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit CasinoDialog(Clicker *clicker);
+    explicit CasinoDialog(Clicker *clicker, QWidget *parent = nullptr);
 
 private:
     void updateUi();

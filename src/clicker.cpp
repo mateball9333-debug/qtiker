@@ -480,7 +480,7 @@ void Clicker::showCarat() {
 }
 
 void Clicker::showCasino() {
-    (new CasinoDialog(this))->show();
+    (new CasinoDialog(this, nullptr))->show();
 }
 
 void Clicker::showLore() {

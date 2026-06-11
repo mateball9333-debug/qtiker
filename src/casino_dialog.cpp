@@ -43,8 +43,8 @@ QString formatScore(qint64 v) {
 
 } // namespace
 
-CasinoDialog::CasinoDialog(Clicker *parentClicker)
-    : QDialog(parentClicker), clicker(parentClicker)
+CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
+    : QDialog(parent), clicker(parentClicker)
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle(QStringLiteral("\u8CED\u3051"));
