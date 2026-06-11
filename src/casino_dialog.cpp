@@ -130,7 +130,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     });
 
     spinTimer = new QTimer(this);
-    spinTimer->setInterval(80);
+    spinTimer->setInterval(50);
     connect(spinTimer, &QTimer::timeout, this, [this]() {
         for (int col = 0; col < 5; ++col) {
             if (col < stoppingReel) continue;
@@ -138,7 +138,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
             reels[col][0] = QRandomGenerator::global()->bounded(SymbolCount);
         }
         ++stopTick;
-        if (stopTick >= stoppingReel * 4 + 6)
+        if (stopTick >= stoppingReel * 3 + 4)
             stopReel(stoppingReel);
         updateUi();
     });
