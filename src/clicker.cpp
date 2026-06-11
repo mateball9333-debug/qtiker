@@ -44,6 +44,7 @@
 
 #include <array>
 #include <iterator>
+#include <memory>
 
 namespace {
 constexpr int ButtonTextChangeChance = 35;
@@ -489,7 +490,7 @@ void Clicker::showLore() {
         QString displayName;
         QString content;
     };
-    QList<LoreEntry> entries;
+    auto entries = std::make_shared<QList<LoreEntry>>();
 
     for (const auto &file : files) {
         QFile f(QString("%1/%2").arg(loreDir, file));
@@ -511,7 +512,7 @@ void Clicker::showLore() {
         LoreEntry entry;
         entry.displayName = displayName;
         entry.content = content;
-        entries.append(entry);
+        entries->append(entry);
     }
 
     auto *dialog = new QDialog(this);
@@ -525,7 +526,7 @@ void Clicker::showLore() {
     layout->setSpacing(WindowSpacing);
 
     auto *tabs = new QComboBox(dialog);
-    for (const auto &e : entries)
+    for (const auto &e : *entries)
         tabs->addItem(e.displayName);
 
     auto *textView = new QTextBrowser(dialog);
@@ -540,12 +541,12 @@ void Clicker::showLore() {
         "}"
     );
 
-    if (!entries.isEmpty())
-        textView->setPlainText(entries.first().content);
+    if (!entries->isEmpty())
+        textView->setPlainText(entries->first().content);
 
-    connect(tabs, &QComboBox::currentIndexChanged, dialog, [&entries, textView](int idx) {
-        if (idx >= 0 && idx < entries.size())
-            textView->setPlainText(entries.at(idx).content);
+    connect(tabs, &QComboBox::currentIndexChanged, dialog, [entries, textView](int idx) {
+        if (idx >= 0 && idx < entries->size())
+            textView->setPlainText(entries->at(idx).content);
     });
 
     auto *closeButton = new QPushButton("Close", dialog);
