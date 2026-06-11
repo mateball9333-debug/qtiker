@@ -10,6 +10,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSettings>
+#include <QSlider>
 #include <QVBoxLayout>
 
 SettingsDialog::SettingsDialog(Clicker *parentClicker)
@@ -18,7 +19,7 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle("Qtiker Settings");
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    resize(320, 170);
+    resize(320, 220);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
@@ -39,7 +40,7 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
 
     auto *savesButton = new QPushButton(QString("Slot %1").arg(clicker->slotForSettings() + 1), savesBox);
     savesButton->setIcon(tintedSvgIcon(
-        ":/assets/ui/bookmark.svg",
+        ":/assets/ui/save.svg",
         savesButton->palette().color(QPalette::ButtonText),
         TopIconSize
     ));
@@ -152,6 +153,28 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
     if (buffBox) {
         layout->addWidget(buffBox);
     }
+
+    auto *volumeBox = new QFrame(this);
+    volumeBox->setFrameShape(QFrame::StyledPanel);
+
+    auto *volumeLayout = new QHBoxLayout(volumeBox);
+    volumeLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    volumeLayout->setSpacing(DialogSpacing);
+
+    auto *volumeText = new QLabel("Volume", volumeBox);
+    setWidgetFont(volumeText, volumeText->font().pointSize(), true);
+
+    volumeSlider = new QSlider(Qt::Horizontal, volumeBox);
+    volumeSlider->setRange(0, 100);
+    volumeSlider->setValue(static_cast<int>(clicker->masterVolume() * 100));
+    connect(volumeSlider, &QSlider::valueChanged, this, [this](int value) {
+        clicker->setMasterVolume(value / 100.0);
+    });
+
+    volumeLayout->addWidget(volumeText);
+    volumeLayout->addWidget(volumeSlider, 1);
+
+    layout->addWidget(volumeBox);
     layout->addStretch();
     layout->addWidget(closeButton);
 }

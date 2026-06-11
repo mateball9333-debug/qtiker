@@ -67,9 +67,11 @@ qt_add_resources(qtiker "app_resources"
         assets/ui/hourglass.svg
         assets/ui/snowflake.svg
         assets/sound/click.wav
-        assets/sound/error.wav
         assets/sound/buy.wav
         assets/sound/crit.wav
+        assets/sound/burn.wav
+        assets/sound/buff.wav
+        assets/sound/unlock.wav
 )
 
 if(BUILD_TESTING)

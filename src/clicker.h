@@ -46,6 +46,8 @@ public:
     int slotForSettings() const { return currentSlot; }
     void switchToSlot(int slot);
     void resetSlot();
+    void setMasterVolume(qreal volume);
+    qreal masterVolume() const;
 
     GameState game;
 
@@ -132,6 +134,7 @@ private:
 
     QElapsedTimer playTimer;
     int currentSlot = 0;
+    qreal m_masterVolume = 1.0;
 
     StatusBar *statusBar = nullptr;
     QLabel *scoreLabel = nullptr;
@@ -154,7 +157,6 @@ private:
     QGraphicsDropShadowEffect *clickGlowEffect = nullptr;
     QGraphicsDropShadowEffect *changelogGlowEffect = nullptr;
     QSoundEffect *clickSound = nullptr;
-    QSoundEffect *errorSound = nullptr;
     QSoundEffect *buySound = nullptr;
     QSoundEffect *critSound = nullptr;
     ParticleOverlay *particleOverlay = nullptr;

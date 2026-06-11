@@ -104,6 +104,7 @@ Clicker::Clicker(QWidget *parent) : QWidget(parent) {
     setupWindow();
     {
         QSettings meta("qtiker", "qtiker");
+        m_masterVolume = meta.value("masterVolume", 1.0).toDouble();
         currentSlot = meta.value(SettingsKeys::CurrentSlot, 0).toInt();
         const bool hasRootData = meta.contains(SettingsKeys::Score);
         const bool hasSlotData = meta.contains(QString("slot0/%1").arg(SettingsKeys::Score));
@@ -252,7 +253,6 @@ void Clicker::makeClick() {
 
 void Clicker::buyClickUpgrade() {
     if (game.score < game.clickCost) {
-        if (errorSound) errorSound->play();
         return;
     }
 
@@ -267,7 +267,6 @@ void Clicker::buyClickUpgrade() {
 
 void Clicker::buyIncomeUpgrade() {
     if (game.score < game.incomeCost) {
-        if (errorSound) errorSound->play();
         return;
     }
 
@@ -572,7 +571,7 @@ void Clicker::showAssets() {
             playBtn->setToolTip("Play");
 
             auto *sound = new QSoundEffect(dialog);
-            sound->setSource(QUrl("qrc:" + entry.path));
+            sound->setSource(QUrl("qrc:" + entry.path.mid(1)));
             sound->setVolume(0.8);
 
             connect(playBtn, &QPushButton::clicked, dialog, [sound, playBtn]() {
@@ -716,19 +715,24 @@ void Clicker::buildUi() {
 
     clickSound = new QSoundEffect(this);
     clickSound->setSource(QUrl("qrc:/assets/sound/click.wav"));
-    clickSound->setVolume(0.4);
-
-    errorSound = new QSoundEffect(this);
-    errorSound->setSource(QUrl("qrc:/assets/sound/error.wav"));
-    errorSound->setVolume(0.5);
+    clickSound->setVolume(0.6 * m_masterVolume);
 
     buySound = new QSoundEffect(this);
     buySound->setSource(QUrl("qrc:/assets/sound/buy.wav"));
-    buySound->setVolume(0.5);
+    buySound->setVolume(1.0);
 
     critSound = new QSoundEffect(this);
     critSound->setSource(QUrl("qrc:/assets/sound/crit.wav"));
-    critSound->setVolume(0.5);
+    critSound->setVolume(1.0);
+
+    for (auto *s : {buySound, critSound}) {
+        s->setVolume(m_masterVolume);
+        connect(s, &QSoundEffect::statusChanged, this, [s]() {
+            if (s->status() == QSoundEffect::Error) {
+                qWarning("SoundEffect error: %s", qPrintable(s->source().toString()));
+            }
+        });
+    }
 
     gachaButton = new QPushButton("Gacha", this);
     gachaButton->setMinimumHeight(32);
@@ -1465,6 +1469,18 @@ QString Clicker::formatDuration(qint64 seconds) const {
 QString Clicker::formatUpgradeText(const QString &label, int ownedCount, int cost) const {
     return QString("x%1  %2  %3")
         .arg(formatNumber(ownedCount), label, formatNumber(cost));
+}
+
+void Clicker::setMasterVolume(qreal volume) {
+    m_masterVolume = qBound(0.0, volume, 1.0);
+    QSettings("qtiker", "qtiker").setValue("masterVolume", m_masterVolume);
+    for (auto *s : {clickSound, buySound, critSound}) {
+        if (s) s->setVolume(m_masterVolume);
+    }
+}
+
+qreal Clicker::masterVolume() const {
+    return m_masterVolume;
 }
 
 QString Clicker::changelogHtml() const {

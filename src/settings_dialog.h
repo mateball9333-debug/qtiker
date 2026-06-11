@@ -3,6 +3,7 @@
 #include <QDialog>
 
 class Clicker;
+class QSlider;
 
 class SettingsDialog : public QDialog {
     Q_OBJECT
@@ -12,4 +13,5 @@ public:
 
 private:
     Clicker *clicker;
+    QSlider *volumeSlider = nullptr;
 };

@@ -7,6 +7,7 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QUrl>
 #include <QVBoxLayout>
 
 CaratDialog::CaratDialog(Clicker *parentClicker)
@@ -101,6 +102,7 @@ CaratDialog::CaratDialog(Clicker *parentClicker)
             return;
         clicker->game.score -= CaratBurnCost;
         clicker->game.carats += CaratBurnReward;
+        if (burnSound) burnSound->play();
         clicker->saveGame();
         clicker->refreshUi();
         updateUi();
@@ -113,6 +115,7 @@ CaratDialog::CaratDialog(Clicker *parentClicker)
             return;
         clicker->game.score -= cost;
         clicker->game.carats += reward;
+        if (burnSound) burnSound->play();
         clicker->saveGame();
         clicker->refreshUi();
         updateUi();
@@ -123,6 +126,7 @@ CaratDialog::CaratDialog(Clicker *parentClicker)
             return;
         clicker->game.carats -= SecondCardSlotCost;
         clicker->game.secondCardSlotUnlocked = true;
+        if (unlockSound) unlockSound->play();
         clicker->saveGame();
         clicker->refreshUi();
         updateUi();
@@ -133,6 +137,7 @@ CaratDialog::CaratDialog(Clicker *parentClicker)
             return;
         clicker->game.carats -= PenaltyUpgradeCost;
         clicker->game.secondCardPenaltyUpgraded = true;
+        if (unlockSound) unlockSound->play();
         clicker->saveGame();
         clicker->refreshUi();
         updateUi();
@@ -145,6 +150,7 @@ CaratDialog::CaratDialog(Clicker *parentClicker)
                 return;
             clicker->game.carats -= rule.caratCost;
             clicker->activateTimedBuff(rule.buff, rule.durationSeconds);
+            if (buffSound) buffSound->play();
             clicker->saveGame();
             clicker->refreshUi();
             updateUi();
@@ -156,6 +162,7 @@ CaratDialog::CaratDialog(Clicker *parentClicker)
                 return;
             clicker->game.carats -= cost;
             clicker->activateTimedBuff(rule.buff, duration);
+            if (buffSound) buffSound->play();
             clicker->saveGame();
             clicker->refreshUi();
             updateUi();
@@ -175,7 +182,22 @@ CaratDialog::CaratDialog(Clicker *parentClicker)
     connect(refreshTimer, &QTimer::timeout, this, &CaratDialog::updateUi);
     refreshTimer->start();
 
+    initSounds();
     updateUi();
+}
+
+void CaratDialog::initSounds() {
+    burnSound = new QSoundEffect(this);
+    burnSound->setSource(QUrl("qrc:/assets/sound/burn.wav"));
+    burnSound->setVolume(clicker->masterVolume());
+
+    buffSound = new QSoundEffect(this);
+    buffSound->setSource(QUrl("qrc:/assets/sound/buff.wav"));
+    buffSound->setVolume(clicker->masterVolume());
+
+    unlockSound = new QSoundEffect(this);
+    unlockSound->setSource(QUrl("qrc:/assets/sound/unlock.wav"));
+    unlockSound->setVolume(clicker->masterVolume());
 }
 
 void CaratDialog::updateUi() {

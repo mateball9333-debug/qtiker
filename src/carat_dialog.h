@@ -3,6 +3,7 @@
 #include <QDialog>
 #include <QLabel>
 #include <QPushButton>
+#include <QSoundEffect>
 #include <QTimer>
 
 #include <array>
@@ -17,9 +18,13 @@ public:
 
 private:
     void updateUi();
+    void initSounds();
 
     Clicker *clicker;
     QTimer *refreshTimer = nullptr;
+    QSoundEffect *burnSound = nullptr;
+    QSoundEffect *buffSound = nullptr;
+    QSoundEffect *unlockSound = nullptr;
     QLabel *caratBalanceLabel = nullptr;
     QLabel *clickBalanceLabel = nullptr;
     QPushButton *burnButton = nullptr;
