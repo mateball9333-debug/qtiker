@@ -14,123 +14,104 @@ namespace {
 
 constexpr int SymbolCount = 7;
 const QString Symbols[SymbolCount] = {
-    QStringLiteral("\u2605"),   // ★  jackpot
-    QStringLiteral("\u2665"),   // ♥
-    QStringLiteral("\u2666"),   // ♦
-    QStringLiteral("\u2663"),   // ♣
-    QStringLiteral("\u2660"),   // ♠
-    QStringLiteral("\u25C6"),   // ◆
-    QStringLiteral("\u25CF"),   // ●
+    QStringLiteral("\u2605"), QStringLiteral("\u2665"), QStringLiteral("\u2666"),
+    QStringLiteral("\u2663"), QStringLiteral("\u2660"), QStringLiteral("\u25C6"),
+    QStringLiteral("\u25CF"),
 };
-constexpr int WildIndex = 0;   // ★ is wild
-
-const int Payouts3[SymbolCount] = {5, 3, 2, 2, 1, 1, 1};
-const int Payouts4[SymbolCount] = {25, 10, 8, 6, 5, 4, 3};
-const int Payouts5[SymbolCount] = {100, 40, 30, 20, 15, 10, 8};
-
+constexpr int WildIndex = 0;
+const int Payouts3[SymbolCount] = {5,3,2,2,1,1,1};
+const int Payouts4[SymbolCount] = {25,10,8,6,5,4,3};
+const int Payouts5[SymbolCount] = {100,40,30,20,15,10,8};
 constexpr qint64 MinBet = 10;
 constexpr qint64 BetStep = 10;
 
-QString formatScore(qint64 v) {
-    if (v < 10000)
-        return QString::number(v);
-    double d = static_cast<double>(v);
-    int s = 0;
+QString fmtScore(qint64 v) {
+    if (v < 10000) return QString::number(v);
+    double d = static_cast<double>(v); int s = 0;
     while (d >= 1000.0 && s < 3) { d /= 1000.0; ++s; }
-    const QChar sfx[4] = {QChar(0), 'K', 'M', 'B'};
-    return QString("%1%2").arg(d, 0, 'f', 1).arg(sfx[s]);
+    return QString("%1%2").arg(d,0,'f',1).arg(QChar::fromLatin1(" KMB"[s]));
 }
 
-} // namespace
+}
 
 CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     : QDialog(parent), clicker(parentClicker)
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
     setWindowTitle(QStringLiteral("\u8CED\u3051"));
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
+    setFixedSize(320, 460);
 
     payLines = {
-        {{0,0,0,0,0}, QColor("#f9a825")},   // top
-        {{1,1,1,1,1}, QColor("#ef6c00")},   // middle
-        {{2,2,2,2,2}, QColor("#6a1b9a")},   // bottom
-        {{0,1,2,1,0}, QColor("#2e7d32")},   // V
-        {{2,1,0,1,2}, QColor("#1565c0")},   // ^
+        {{0,0,0,0,0}, QColor("#f9a825")},
+        {{1,1,1,1,1}, QColor("#ef6c00")},
+        {{2,2,2,2,2}, QColor("#6a1b9a")},
+        {{0,1,2,1,0}, QColor("#2e7d32")},
+        {{2,1,0,1,2}, QColor("#1565c0")},
     };
 
-    auto *layout = new QVBoxLayout();
-    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
-    layout->setSpacing(6);
+    auto *L = new QVBoxLayout(this);
+    L->setContentsMargins(12, 12, 12, 12);
+    L->setSpacing(6);
 
     auto *title = new QLabel(QStringLiteral("\u8CED\u3051 \u30DE\u30B7\u30FC\u30F3"), this);
-    setWidgetFont(title, 14, true);
     title->setAlignment(Qt::AlignCenter);
-    title->setFixedHeight(28);
+    title->setFixedHeight(24);
+    L->addWidget(title);
 
-    balanceLabel = new QLabel(this);
+    balanceLabel = new QLabel("Balance: 0", this);
     balanceLabel->setAlignment(Qt::AlignCenter);
-    balanceLabel->setFixedHeight(22);
-    setWidgetFont(balanceLabel, balanceLabel->font().pointSize(), true);
+    balanceLabel->setFixedHeight(20);
+    L->addWidget(balanceLabel);
 
-    auto *gridBox = new QFrame(this);
-    gridBox->setFrameShape(QFrame::StyledPanel);
-    auto *gridBoxLayout = new QVBoxLayout(gridBox);
-    gridBoxLayout->setSpacing(3);
-    gridBoxLayout->setContentsMargins(6, 6, 6, 6);
+    auto *grid = new QFrame(this);
+    grid->setFrameShape(QFrame::Box);
+    auto *GL = new QVBoxLayout(grid);
+    GL->setSpacing(2);
+    GL->setContentsMargins(8, 8, 8, 8);
 
-    for (int row = 0; row < VisibleRows; ++row) {
-        auto *rowLayout = new QHBoxLayout();
-        rowLayout->setSpacing(3);
-        rowLayout->setContentsMargins(0, 0, 0, 0);
-        for (int col = 0; col < Cols; ++col) {
-            auto *cell = new QLabel(Symbols[0], gridBox);
-            cell->setAlignment(Qt::AlignCenter);
-            cell->setFixedSize(48, 48);
-            auto f = cell->font();
-            f.setPointSize(20);
-            cell->setFont(f);
-            cell->setStyleSheet("QLabel { background: palette(base); border-radius: 6px; }");
-            gridLabels[col][row] = cell;
-            rowLayout->addWidget(cell);
+    for (int row = 0; row < 3; ++row) {
+        auto *RL = new QHBoxLayout();
+        RL->setSpacing(4);
+        for (int col = 0; col < 5; ++col) {
+            auto *c = new QLabel(Symbols[0], grid);
+            c->setAlignment(Qt::AlignCenter);
+            c->setFixedSize(46, 46);
+            c->setFrameShape(QFrame::Box);
+            c->setStyleSheet("QLabel { background: palette(base); }");
+            gridLabels[col][row] = c;
+            RL->addWidget(c);
         }
-        rowLayout->addStretch();
-        gridBoxLayout->addLayout(rowLayout);
+        GL->addLayout(RL);
     }
-    gridBoxLayout->addStretch();
+    L->addWidget(grid);
 
     resultLabel = new QLabel(this);
     resultLabel->setAlignment(Qt::AlignCenter);
-    setWidgetFont(resultLabel, resultLabel->font().pointSize(), true);
-    resultLabel->setMinimumHeight(24);
+    resultLabel->setFixedHeight(24);
+    L->addWidget(resultLabel);
 
     auto *betRow = new QHBoxLayout();
-    betRow->setSpacing(DialogSpacing);
-
-    betDownButton = new QPushButton("-", this);
-    betDownButton->setFixedWidth(36);
-    betUpButton = new QPushButton("+", this);
-    betUpButton->setFixedWidth(36);
-    maxBetButton = new QPushButton("Max", this);
-    maxBetButton->setFixedWidth(50);
-    betLabel = new QLabel(this);
-    betLabel->setAlignment(Qt::AlignCenter);
-    setWidgetFont(betLabel, betLabel->font().pointSize(), true);
-
+    betRow->setSpacing(6);
+    betDownButton = new QPushButton("-", this); betDownButton->setFixedWidth(36);
+    betLabel = new QLabel("Bet: 100", this); betLabel->setAlignment(Qt::AlignCenter);
+    betUpButton = new QPushButton("+", this); betUpButton->setFixedWidth(36);
+    maxBetButton = new QPushButton("Max", this); maxBetButton->setFixedWidth(48);
     betRow->addWidget(betDownButton);
     betRow->addWidget(betLabel, 1);
     betRow->addWidget(betUpButton);
     betRow->addWidget(maxBetButton);
+    L->addLayout(betRow);
 
     spinButton = new QPushButton(QStringLiteral("\u30B9\u30D4\u30F3"), this);
     spinButton->setMinimumHeight(36);
-    auto sf = spinButton->font();
-    sf.setPointSize(16);
-    sf.setBold(true);
-    spinButton->setFont(sf);
+    L->addWidget(spinButton);
 
     auto *closeButton = new QPushButton("Close", this);
+    L->addWidget(closeButton);
+
     connect(closeButton, &QPushButton::clicked, this, &QDialog::accept);
+    connect(spinButton, &QPushButton::clicked, this, &CasinoDialog::spin);
 
     connect(betDownButton, &QPushButton::clicked, this, [this]() {
         if (spinning) return;
@@ -147,76 +128,60 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
         betAmount = qMax(MinBet, clicker->game.score);
         updateUi();
     });
-    connect(spinButton, &QPushButton::clicked, this, &CasinoDialog::spin);
 
     spinTimer = new QTimer(this);
-    spinTimer->setInterval(70);
+    spinTimer->setInterval(80);
     connect(spinTimer, &QTimer::timeout, this, [this]() {
-        for (int col = 0; col < Cols; ++col) {
+        for (int col = 0; col < 5; ++col) {
             if (col < stoppingReel) continue;
-            for (int r = ReelSize - 1; r > 0; --r)
-                reels[col][r] = reels[col][r - 1];
+            for (int r = 11; r > 0; --r) reels[col][r] = reels[col][r-1];
             reels[col][0] = QRandomGenerator::global()->bounded(SymbolCount);
         }
         ++stopTick;
-        if (stoppingReel >= 0 && stopTick >= stoppingReel * 4 + 4) {
+        if (stoppingReel >= 0 && stopTick >= stoppingReel * 5 + 5)
             stopReel(stoppingReel);
-        }
         updateUi();
     });
 
     auto *rg = QRandomGenerator::global();
-    for (int col = 0; col < Cols; ++col)
-        for (int r = 0; r < ReelSize; ++r)
+    for (int col = 0; col < 5; ++col)
+        for (int r = 0; r < 12; ++r)
             reels[col][r] = rg->bounded(SymbolCount);
 
-    setMinimumSize(360, 480);
-    resize(360, 480);
-    setLayout(layout);
     updateUi();
 }
 
 void CasinoDialog::updateUi() {
-    balanceLabel->setText(QStringLiteral("Balance: %1").arg(formatScore(clicker->game.score)));
-    betLabel->setText(QStringLiteral("Bet: %1").arg(formatScore(betAmount)));
-
-    for (int col = 0; col < Cols; ++col)
-        for (int row = 0; row < VisibleRows; ++row)
+    balanceLabel->setText("Balance: " + fmtScore(clicker->game.score));
+    betLabel->setText("Bet: " + fmtScore(betAmount));
+    for (int col = 0; col < 5; ++col)
+        for (int row = 0; row < 3; ++row)
             gridLabels[col][row]->setText(Symbols[reels[col][row]]);
-
-    const bool canSpin = !spinning && clicker->game.score >= betAmount;
-    spinButton->setEnabled(canSpin);
+    bool can = !spinning && clicker->game.score >= betAmount;
+    spinButton->setEnabled(can);
     betDownButton->setEnabled(!spinning);
     betUpButton->setEnabled(!spinning);
     maxBetButton->setEnabled(!spinning);
-
-    if (spinning)
-        spinButton->setText(QStringLiteral("..."));
-    else
-        spinButton->setText(QStringLiteral("\u30B9\u30D4\u30F3"));
+    spinButton->setText(spinning ? "..." : QStringLiteral("\u30B9\u30D4\u30F3"));
 }
 
 void CasinoDialog::spin() {
-    if (spinning || clicker->game.score < betAmount)
-        return;
-
+    if (spinning || clicker->game.score < betAmount) return;
     clicker->game.score -= betAmount;
     spinning = true;
     stoppingReel = -1;
     stopTick = 0;
     winningLines.clear();
     resultLabel->setText(QString());
-
-    for (int col = 0; col < Cols; ++col)
-        for (int row = 0; row < VisibleRows; ++row)
-            gridLabels[col][row]->setStyleSheet("QLabel { background: palette(base); border-radius: 6px; }");
-
+    for (int col = 0; col < 5; ++col)
+        for (int row = 0; row < 3; ++row)
+            gridLabels[col][row]->setStyleSheet("QLabel { background: palette(base); }");
     updateUi();
     spinTimer->start();
 }
 
 void CasinoDialog::stopReel(int reel) {
-    if (reel == Cols) {
+    if (reel == 5) {
         spinTimer->stop();
         spinning = false;
         evaluateAndShow();
@@ -230,64 +195,46 @@ void CasinoDialog::stopReel(int reel) {
 }
 
 void CasinoDialog::evaluateAndShow() {
-    // Build grid from reel top 3 rows
-    for (int col = 0; col < Cols; ++col)
-        for (int row = 0; row < VisibleRows; ++row)
+    for (int col = 0; col < 5; ++col)
+        for (int row = 0; row < 3; ++row)
             grid[col][row] = reels[col][row];
 
     qint64 totalWin = 0;
-    const int w = WildIndex;
-
     for (int li = 0; li < payLines.size(); ++li) {
         const auto &line = payLines[li];
-
-        // Find the matching symbol (skip wild, wilds count as that symbol)
         int sym = -1;
-        bool allMatch = true;
-        for (int c = 0; c < Cols; ++c) {
-            const int s = grid[c][line.cols[c]];
-            if (s != w) {
+        bool ok = true;
+        for (int c = 0; c < 5; ++c) {
+            int s = grid[c][line.cols[c]];
+            if (s != WildIndex) {
                 if (sym < 0) sym = s;
-                else if (sym != s) { allMatch = false; break; }
+                else if (sym != s) { ok = false; break; }
             }
         }
-        if (!allMatch || sym < 0) continue;
-
-        // Count how many match (including wilds)
+        if (!ok || sym < 0) continue;
         int count = 0;
-        for (int c = 0; c < Cols; ++c) {
-            const int s = grid[c][line.cols[c]];
-            if (s == sym || s == w) ++count;
-            else break;
+        for (int c = 0; c < 5; ++c) {
+            int s = grid[c][line.cols[c]];
+            if (s == sym || s == WildIndex) ++count; else break;
         }
-
         int payout = 0;
         if (count == 5) payout = Payouts5[sym];
         else if (count == 4) payout = Payouts4[sym];
         else if (count == 3) payout = Payouts3[sym];
-
-        if (payout > 0) {
-            totalWin += betAmount * payout;
-            winningLines.append(li);
-        }
+        if (payout > 0) { totalWin += betAmount * payout; winningLines.append(li); }
     }
 
-    // Highlight winning cells
     for (int li : winningLines) {
         const auto &line = payLines[li];
-        for (int c = 0; c < Cols; ++c) {
-            auto *cell = gridLabels[c][line.cols[c]];
-            cell->setStyleSheet(QString("QLabel { background: %1; border-radius: 6px; color: white; font-weight: bold; }")
-                                    .arg(line.color.name()));
-        }
+        for (int c = 0; c < 5; ++c)
+            gridLabels[c][line.cols[c]]->setStyleSheet(
+                QString("QLabel { background: %1; font-weight: bold; }").arg(line.color.name()));
     }
 
     if (totalWin > 0) {
         clicker->game.score += totalWin;
-        resultLabel->setText(QStringLiteral("\u2728 Won %1 \u2728").arg(formatScore(totalWin)));
-        resultLabel->setStyleSheet(QString("color: %1; font-weight: bold;").arg(payLines[winningLines.first()].color.name()));
+        resultLabel->setText(QStringLiteral("\u2728 Won %1 \u2728").arg(fmtScore(totalWin)));
     } else {
-        resultLabel->setText(QStringLiteral("No luck..."));
-        resultLabel->setStyleSheet("");
+        resultLabel->setText("No luck...");
     }
 }
