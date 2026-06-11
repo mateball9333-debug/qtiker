@@ -31,7 +31,8 @@ inline constexpr ChangelogEntry Changelog024[] = {
     {ChangelogIcon::Changed, "Gave the window a little more room to breathe."},
     {ChangelogIcon::Changed, "Some bugs fixed."},
     {ChangelogIcon::Added, "Added rainbow 67 status bar."}, 
-    {ChangelogIcon::Added, "Added L with some combination."}, 
+    {ChangelogIcon::Added, "Added L with some combination."},
+    {ChangelogIcon::Added, "Added casino slot machine (賭け)."},
 };
 
 inline constexpr ChangelogEntry Changelog023[] = {
