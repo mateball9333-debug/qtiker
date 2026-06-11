@@ -138,7 +138,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
             reels[col][0] = QRandomGenerator::global()->bounded(SymbolCount);
         }
         ++stopTick;
-        if (stoppingReel >= 0 && stopTick >= stoppingReel * 5 + 5)
+        if (stopTick >= stoppingReel * 4 + 6)
             stopReel(stoppingReel);
         updateUi();
     });
@@ -169,7 +169,7 @@ void CasinoDialog::spin() {
     if (spinning || clicker->game.score < betAmount) return;
     clicker->game.score -= betAmount;
     spinning = true;
-    stoppingReel = -1;
+    stoppingReel = 0;
     stopTick = 0;
     winningLines.clear();
     resultLabel->setText(QString());
@@ -181,7 +181,7 @@ void CasinoDialog::spin() {
 }
 
 void CasinoDialog::stopReel(int reel) {
-    if (reel == 5) {
+    if (reel >= 5) {
         spinTimer->stop();
         spinning = false;
         evaluateAndShow();
