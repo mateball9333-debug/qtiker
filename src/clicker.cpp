@@ -227,9 +227,11 @@ void Clicker::makeClick() {
     if (roll < 1) {
         earned = buffed * 5;
         triggerCritBurst(true);
+        if (critSound) critSound->play();
     } else if (roll < 6) {
         earned = buffed * 2;
         triggerCritBurst(false);
+        if (critSound) critSound->play();
     } else {
         earned = buffed;
     }
@@ -250,6 +252,7 @@ void Clicker::makeClick() {
 
 void Clicker::buyClickUpgrade() {
     if (game.score < game.clickCost) {
+        if (errorSound) errorSound->play();
         return;
     }
 
@@ -257,12 +260,14 @@ void Clicker::buyClickUpgrade() {
     game.perClick += 1;
     game.clickCost = nextClickUpgradeCost(game.clickCost);
 
+    if (buySound) buySound->play();
     saveGame();
     refreshUi();
 }
 
 void Clicker::buyIncomeUpgrade() {
     if (game.score < game.incomeCost) {
+        if (errorSound) errorSound->play();
         return;
     }
 
@@ -270,6 +275,7 @@ void Clicker::buyIncomeUpgrade() {
     game.perSecond += 1;
     game.incomeCost = nextIncomeUpgradeCost(game.incomeCost);
 
+    if (buySound) buySound->play();
     saveGame();
     refreshUi();
 }
@@ -477,7 +483,7 @@ void Clicker::showAssets() {
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setWindowTitle("Assets");
     dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    dialog->resize(400, 440);
+    dialog->resize(420, 480);
 
     auto *layout = new QVBoxLayout(dialog);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
@@ -495,14 +501,33 @@ void Clicker::showAssets() {
     flow->setSpacing(2);
     flow->setContentsMargins(4, 4, 4, 4);
 
-    QStringList filters = {"*.svg", "*.png"};
-    QDir assetsDir(":/assets/ui");
-    const auto files = assetsDir.entryList(filters, QDir::Files, QDir::Name);
+    struct AssetEntry {
+        QString name;
+        QString path;
+        qint64 size;
+        bool isSvg;
+        bool isPng;
+        bool isWav;
+    };
+    QList<AssetEntry> entries;
 
-    for (const auto &file : files) {
-        const QString path = QString(":/assets/ui/%1").arg(file);
-        const bool isSvg = file.endsWith(".svg", Qt::CaseInsensitive);
+    const auto collectAssets = [&](const QString &dir) {
+        QDir d(dir);
+        for (const auto &file : d.entryList({"*.svg", "*.png", "*.wav"}, QDir::Files, QDir::Name)) {
+            AssetEntry e;
+            e.name = file;
+            e.path = QString("%1/%2").arg(dir, file);
+            e.size = QFileInfo(e.path).size();
+            e.isSvg = file.endsWith(".svg", Qt::CaseInsensitive);
+            e.isPng = file.endsWith(".png", Qt::CaseInsensitive);
+            e.isWav = file.endsWith(".wav", Qt::CaseInsensitive);
+            entries.append(e);
+        }
+    };
+    collectAssets(":/assets/ui");
+    collectAssets(":/assets/sound");
 
+    for (const auto &entry : entries) {
         auto *row = new QFrame(scrollContent);
         row->setFrameShape(QFrame::StyledPanel);
         auto *rowLayout = new QHBoxLayout(row);
@@ -513,25 +538,26 @@ void Clicker::showAssets() {
         icon->setFixedSize(24, 24);
         icon->setAlignment(Qt::AlignCenter);
 
-        if (isSvg) {
+        if (entry.isSvg) {
             QPixmap pixmap(24, 24);
             pixmap.fill(Qt::transparent);
             QPainter painter(&pixmap);
-            QSvgRenderer renderer(path);
+            QSvgRenderer renderer(entry.path);
             renderer.render(&painter, QRectF(0, 0, 24, 24));
             painter.end();
             icon->setPixmap(pixmap);
-        } else {
-            QPixmap pm(path);
+        } else if (entry.isPng) {
+            QPixmap pm(entry.path);
             icon->setPixmap(pm.scaled(24, 24, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        } else {
+            icon->setText("\u266B");
         }
 
-        auto *name = new QLabel(file, row);
+        auto *name = new QLabel(entry.name, row);
         name->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         setWidgetFont(name, name->font().pointSize(), false);
 
-        QFileInfo fi(path);
-        auto *sizeLabel = new QLabel(QString("%1 B").arg(fi.size()), row);
+        auto *sizeLabel = new QLabel(QString("%1 B").arg(entry.size), row);
         sizeLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         setWidgetFont(sizeLabel, 8, false);
 
@@ -539,12 +565,39 @@ void Clicker::showAssets() {
         rowLayout->addWidget(name, 1);
         rowLayout->addWidget(sizeLabel);
 
+        if (entry.isWav) {
+            auto *playBtn = new QPushButton("\u25B6", row);
+            playBtn->setFixedSize(28, 24);
+            playBtn->setCheckable(true);
+            playBtn->setToolTip("Play");
+
+            auto *sound = new QSoundEffect(dialog);
+            sound->setSource(QUrl("qrc:" + entry.path));
+            sound->setVolume(0.8);
+
+            connect(playBtn, &QPushButton::clicked, dialog, [sound, playBtn]() {
+                if (sound->isPlaying()) {
+                    sound->stop();
+                    playBtn->setChecked(false);
+                } else {
+                    sound->play();
+                    playBtn->setChecked(true);
+                    QTimer::singleShot(2000, sound, [playBtn]() { playBtn->setChecked(false); });
+                }
+            });
+            connect(sound, &QSoundEffect::playingChanged, dialog, [playBtn]() {
+                playBtn->setChecked(false);
+            });
+
+            rowLayout->addWidget(playBtn);
+        }
+
         flow->addWidget(row);
     }
 
     scrollArea->setWidget(scrollContent);
 
-    auto *countLabel = new QLabel(QString("Total assets: %1").arg(files.size()), dialog);
+    auto *countLabel = new QLabel(QString("Total assets: %1").arg(entries.size()), dialog);
     setWidgetFont(countLabel, countLabel->font().pointSize(), true);
 
     auto *closeButton = new QPushButton("Close", dialog);
@@ -664,6 +717,18 @@ void Clicker::buildUi() {
     clickSound = new QSoundEffect(this);
     clickSound->setSource(QUrl("qrc:/assets/sound/click.wav"));
     clickSound->setVolume(0.4);
+
+    errorSound = new QSoundEffect(this);
+    errorSound->setSource(QUrl("qrc:/assets/sound/error.wav"));
+    errorSound->setVolume(0.5);
+
+    buySound = new QSoundEffect(this);
+    buySound->setSource(QUrl("qrc:/assets/sound/buy.wav"));
+    buySound->setVolume(0.5);
+
+    critSound = new QSoundEffect(this);
+    critSound->setSource(QUrl("qrc:/assets/sound/crit.wav"));
+    critSound->setVolume(0.5);
 
     gachaButton = new QPushButton("Gacha", this);
     gachaButton->setMinimumHeight(32);

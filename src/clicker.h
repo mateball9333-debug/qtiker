@@ -154,6 +154,9 @@ private:
     QGraphicsDropShadowEffect *clickGlowEffect = nullptr;
     QGraphicsDropShadowEffect *changelogGlowEffect = nullptr;
     QSoundEffect *clickSound = nullptr;
+    QSoundEffect *errorSound = nullptr;
+    QSoundEffect *buySound = nullptr;
+    QSoundEffect *critSound = nullptr;
     ParticleOverlay *particleOverlay = nullptr;
     int clickEffectFramesLeft = 0;
     int clickEffectHue = 0;
