@@ -179,6 +179,8 @@ void CasinoDialog::spin() {
     stoppingReel = 0;
     stopTick = 0;
     winningLines.clear();
+    winStarts.clear();
+    winCounts.clear();
     resultLabel->setText(QString());
     for (int col = 0; col < 5; ++col)
         for (int row = 0; row < 3; ++row)
@@ -268,14 +270,18 @@ void CasinoDialog::evaluateAndShow() {
             if (payout > 0) {
                 totalWin += betAmount * payout;
                 winningLines.append(li);
+                winStarts.append(bestStart);
+                winCounts.append(bestCount);
             }
         }
     }
 
     // Highlight winning cells
-    for (int li : winningLines) {
-        const auto &line = payLines[li];
-        for (int c = 0; c < 5; ++c)
+    for (int wi = 0; wi < winningLines.size(); ++wi) {
+        const auto &line = payLines[winningLines[wi]];
+        const int start = winStarts[wi];
+        const int count = winCounts[wi];
+        for (int c = start; c < start + count; ++c)
             gridLabels[c][line.cols[c]]->setStyleSheet(
                 QString("QLabel { background: %1; font-weight: bold; }").arg(line.color.name()));
     }
@@ -289,8 +295,12 @@ void CasinoDialog::evaluateAndShow() {
 }
 
 void CasinoDialog::highlightLine(int lineIdx, bool on) {
+    const int wi = winningLines.indexOf(lineIdx);
+    if (wi < 0) return;
     const auto &line = payLines[lineIdx];
-    for (int c = 0; c < 5; ++c) {
+    const int start = winStarts[wi];
+    const int count = winCounts[wi];
+    for (int c = start; c < start + count; ++c) {
         auto *cell = gridLabels[c][line.cols[c]];
         if (on)
             cell->setStyleSheet(QString("QLabel { background: %1; font-weight: bold; }").arg(line.color.name()));

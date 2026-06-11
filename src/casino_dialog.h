@@ -58,4 +58,6 @@ private:
 
     QVector<PayLine> payLines;
     QVector<int> winningLines;
+    QVector<int> winStarts;
+    QVector<int> winCounts;
 };
