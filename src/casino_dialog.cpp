@@ -49,8 +49,6 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle(QStringLiteral("\u8CED\u3051"));
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    setMinimumSize(360, 480);
-    resize(360, 480);
 
     payLines = {
         {{0,0,0,0,0}, QColor("#f9a825")},   // top
@@ -62,14 +60,16 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
-    layout->setSpacing(WindowSpacing);
+    layout->setSpacing(6);
 
     auto *title = new QLabel(QStringLiteral("\u8CED\u3051 \u30DE\u30B7\u30FC\u30F3"), this);
     setWidgetFont(title, 14, true);
     title->setAlignment(Qt::AlignCenter);
+    title->setFixedHeight(28);
 
     balanceLabel = new QLabel(this);
     balanceLabel->setAlignment(Qt::AlignCenter);
+    balanceLabel->setFixedHeight(22);
     setWidgetFont(balanceLabel, balanceLabel->font().pointSize(), true);
 
     auto *gridBox = new QFrame(this);
@@ -171,6 +171,8 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
         for (int r = 0; r < ReelSize; ++r)
             reels[col][r] = rg->bounded(SymbolCount);
 
+    setMinimumSize(360, 480);
+    resize(360, 480);
     updateUi();
 }
 
