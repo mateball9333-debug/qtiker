@@ -131,6 +131,40 @@ void StatusBar::refreshSessionTimer() {
 
     const qint64 secs = sessionTimer.elapsed() / 1000;
     sessionLabel->setText(QString("Session \u2022 %1").arg(fmtDuration(secs)));
+
+    const bool isRainbow = QString::number(secs).contains("67");
+    if (isRainbow) {
+        if (!glowTimer) {
+            glowTimer = new QTimer(this);
+            glowTimer->setInterval(140);
+            connect(glowTimer, &QTimer::timeout, this, &StatusBar::updateRainbowGlow);
+        }
+        if (!glowTimer->isActive()) {
+            glowHue = 0;
+            glowTimer->start();
+        }
+    } else {
+        if (glowTimer && glowTimer->isActive()) {
+            glowTimer->stop();
+        }
+        if (sessionGlow) {
+            sessionLabel->setGraphicsEffect(nullptr);
+            sessionGlow = nullptr;
+        }
+    }
+}
+
+void StatusBar::updateRainbowGlow() {
+    if (!sessionLabel) return;
+    if (!sessionGlow) {
+        sessionGlow = new QGraphicsDropShadowEffect(sessionLabel);
+        sessionGlow->setBlurRadius(12);
+        sessionGlow->setOffset(0, 0);
+        sessionLabel->setGraphicsEffect(sessionGlow);
+    }
+    sessionGlow->setColor(QColor::fromHsv(glowHue, 210, 245));
+    sessionGlow->setEnabled(true);
+    glowHue = (glowHue + 18) % 360;
 }
 
 void StatusBar::ensureRefreshRunning() {

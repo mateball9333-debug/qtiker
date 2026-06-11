@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QElapsedTimer>
+#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QTimer>
@@ -24,6 +25,7 @@ private:
     void refresh();
     void refreshSaveTimer();
     void refreshSessionTimer();
+    void updateRainbowGlow();
     void ensureRefreshRunning();
 
     QHBoxLayout *barLayout;
@@ -32,5 +34,8 @@ private:
     QElapsedTimer timeSinceSave;
     QElapsedTimer sessionTimer;
     QTimer *refreshTimer;
+    QTimer *glowTimer = nullptr;
+    QGraphicsDropShadowEffect *sessionGlow = nullptr;
+    int glowHue = 0;
     bool hasContent = false;
 };
