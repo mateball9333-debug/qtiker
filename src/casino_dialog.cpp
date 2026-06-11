@@ -133,7 +133,24 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     L->addWidget(closeButton);
 
     connect(closeButton, &QPushButton::clicked, this, &QDialog::accept);
-    connect(spinButton, &QPushButton::clicked, this, &CasinoDialog::spin);
+    connect(spinButton, &QPushButton::clicked, this, [this]() {
+        if (spinning) {
+            // Skip to end
+            spinTimer->stop();
+            spinning = false;
+            for (int col = stoppingReel; col < 5; ++col) {
+                for (int r = 11; r > 0; --r)
+                    reels[col][r] = reels[col][r - 1];
+                reels[col][0] = QRandomGenerator::global()->bounded(SymbolCount);
+            }
+            evaluateAndShow();
+            clicker->saveGame();
+            clicker->refreshUi();
+            updateUi();
+        } else {
+            spin();
+        }
+    });
 
     connect(betDownButton, &QPushButton::clicked, this, [this]() {
         if (spinning) return;
@@ -180,13 +197,13 @@ void CasinoDialog::updateUi() {
         for (int row = 0; row < 3; ++row)
             gridLabels[col][row]->setText(Symbols[reels[col][row]]);
     bool can = !spinning && clicker->game.score >= betAmount;
-    spinButton->setEnabled(can);
+    spinButton->setEnabled(can || spinning);
     betDownButton->setEnabled(!spinning);
     betUpButton->setEnabled(!spinning);
     maxBetButton->setEnabled(!spinning);
     for (auto *b : presetButtons)
         b->setEnabled(!spinning);
-    spinButton->setText(spinning ? "..." : QStringLiteral("\u30B9\u30D4\u30F3"));
+    spinButton->setText(spinning ? "Skip \u00BB" : QStringLiteral("\u30B9\u30D4\u30F3"));
 }
 
 void CasinoDialog::spin() {
