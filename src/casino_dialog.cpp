@@ -214,11 +214,10 @@ void CasinoDialog::forceWin() {
     const auto &line = payLines[lineIdx];
     const int sym = rg->bounded(1, SymbolCount);
     const int length = rg->bounded(3, 6); // 3-5
-    const int start = (length <= 3) ? rg->bounded(3) : 0;
 
-    for (int c = start; c < start + length && c < 5; ++c) {
+    for (int c = 0; c < length; ++c) {
         reels[c][line.cols[c]] = sym;
-        if (length >= 4 && c > start && rg->bounded(100) < 20)
+        if (length >= 4 && c > 0 && rg->bounded(100) < 20)
             reels[c][line.cols[c]] = WildIndex;
     }
 }
@@ -233,45 +232,34 @@ void CasinoDialog::evaluateAndShow() {
     for (int li = 0; li < payLines.size(); ++li) {
         const auto &line = payLines[li];
 
-        // Find longest consecutive match (including wilds) starting at each position
-        int bestCount = 0;
-        int bestSym = -1;
-        int bestStart = 0;
-
-        for (int start = 0; start <= 2; ++start) {
-            int baseSym = -1;
-            int count = 0;
-            for (int c = start; c < 5; ++c) {
-                int s = grid[c][line.cols[c]];
-                if (s == WildIndex) {
-                    ++count;
-                } else if (baseSym < 0) {
-                    baseSym = s;
-                    ++count;
-                } else if (s == baseSym) {
-                    ++count;
-                } else {
-                    break;
-                }
-            }
-            if (baseSym < 0) baseSym = WildIndex;
-            if (count >= 3 && count > bestCount) {
-                bestCount = count;
-                bestSym = baseSym;
-                bestStart = start;
+        // Count consecutive matches from left (incl. wilds)
+        int baseSym = -1;
+        int count = 0;
+        for (int c = 0; c < 5; ++c) {
+            int s = grid[c][line.cols[c]];
+            if (s == WildIndex) {
+                ++count;
+            } else if (baseSym < 0) {
+                baseSym = s;
+                ++count;
+            } else if (s == baseSym) {
+                ++count;
+            } else {
+                break;
             }
         }
+        if (baseSym < 0) baseSym = WildIndex;
 
-        if (bestCount >= 3) {
+        if (count >= 3) {
             int payout = 0;
-            if (bestCount == 5) payout = Payouts5[bestSym];
-            else if (bestCount == 4) payout = Payouts4[bestSym];
-            else payout = Payouts3[bestSym];
+            if (count == 5) payout = Payouts5[baseSym];
+            else if (count == 4) payout = Payouts4[baseSym];
+            else payout = Payouts3[baseSym];
             if (payout > 0) {
                 totalWin += betAmount * payout;
                 winningLines.append(li);
-                winStarts.append(bestStart);
-                winCounts.append(bestCount);
+                winStarts.append(0);
+                winCounts.append(count);
             }
         }
     }
