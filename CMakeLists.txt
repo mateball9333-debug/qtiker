@@ -41,39 +41,46 @@ add_executable(qtiker
     src/status_bar.h
 )
 target_link_libraries(qtiker Qt6::Widgets Qt6::Svg Qt6::Multimedia)
+
+set(ResourceFiles
+    assets/qtiker-64.png
+    assets/tux.png
+    assets/ui/add.svg
+    assets/ui/carat.png
+    assets/ui/changed.svg
+    assets/ui/clock.svg
+    assets/ui/info.svg
+    assets/ui/release-notes.svg
+    assets/ui/remove.svg
+    assets/ui/reset.svg
+    assets/ui/settings.svg
+    assets/ui/statistics.svg
+    assets/ui/stat-down-double.svg
+    assets/ui/stat-down.svg
+    assets/ui/stat-neutral.svg
+    assets/ui/stat-up-double.svg
+    assets/ui/stat-up.svg
+    assets/ui/bolt.svg
+    assets/ui/save.svg
+    assets/ui/candle.svg
+    assets/ui/hourglass.svg
+    assets/ui/snowflake.svg
+    assets/sound/click.wav
+    assets/sound/buy.wav
+    assets/sound/crit.wav
+    assets/sound/burn.wav
+    assets/sound/buff.wav
+    assets/sound/unlock.wav
+)
+
+file(GLOB LoreTxts RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    "assets/かかかかかかかかかかかかかかかかかかかかかかかかかかかか/*.txt"
+)
+list(APPEND ResourceFiles ${LoreTxts})
+
 qt_add_resources(qtiker "app_resources"
     PREFIX "/"
-    FILES
-        assets/qtiker-64.png
-        assets/tux.png
-        assets/ui/add.svg
-        assets/ui/carat.png
-        assets/ui/changed.svg
-        assets/ui/clock.svg
-        assets/ui/info.svg
-        assets/ui/release-notes.svg
-        assets/ui/remove.svg
-        assets/ui/reset.svg
-        assets/ui/settings.svg
-        assets/ui/statistics.svg
-        assets/ui/stat-down-double.svg
-        assets/ui/stat-down.svg
-        assets/ui/stat-neutral.svg
-        assets/ui/stat-up-double.svg
-        assets/ui/stat-up.svg
-        assets/ui/bolt.svg
-        assets/ui/save.svg
-        assets/ui/candle.svg
-        assets/ui/hourglass.svg
-        assets/ui/snowflake.svg
-        assets/sound/click.wav
-        assets/sound/buy.wav
-        assets/sound/crit.wav
-        assets/sound/burn.wav
-        assets/sound/buff.wav
-        assets/sound/unlock.wav
-        assets/かかかかかかかかかかかかかかかかかかかかかかかかかかかか/R.txt
-        assets/かかかかかかかかかかかかかかかかかかかかかかかかかかかか/ᗜˬᗜ.txt
+    FILES ${ResourceFiles}
 )
 
 if(BUILD_TESTING)
