@@ -24,6 +24,7 @@ private:
     void updateUi();
     void spin();
     void stopReel(int reel);
+    void forceWin();
     void evaluateAndShow();
 
     Clicker *clicker;

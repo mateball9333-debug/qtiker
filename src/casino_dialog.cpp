@@ -184,6 +184,11 @@ void CasinoDialog::stopReel(int reel) {
     if (reel >= 5) {
         spinTimer->stop();
         spinning = false;
+
+        // ~30% chance to force a win
+        if (QRandomGenerator::global()->bounded(100) < 30)
+            forceWin();
+
         evaluateAndShow();
         clicker->saveGame();
         clicker->refreshUi();
@@ -192,6 +197,21 @@ void CasinoDialog::stopReel(int reel) {
     }
     ++stoppingReel;
     stopTick = 0;
+}
+
+void CasinoDialog::forceWin() {
+    auto *rg = QRandomGenerator::global();
+    const int lineIdx = rg->bounded(payLines.size());
+    const auto &line = payLines[lineIdx];
+    const int sym = rg->bounded(1, SymbolCount); // not wild itself
+    const int length = rg->bounded(3, 6); // 3, 4, or 5
+
+    for (int c = 0; c < length; ++c) {
+        reels[c][line.cols[c]] = sym;
+        // sometimes replace with wild for bigger wins
+        if (length >= 4 && c > 0 && rg->bounded(100) < 20)
+            reels[c][line.cols[c]] = WildIndex;
+    }
 }
 
 void CasinoDialog::evaluateAndShow() {
