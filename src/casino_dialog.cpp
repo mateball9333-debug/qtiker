@@ -70,14 +70,15 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
     reelBox->setFrameShape(QFrame::StyledPanel);
     auto *reelLayout = new QHBoxLayout(reelBox);
     reelLayout->setContentsMargins(PanelMargin, PanelMargin, PanelMargin, PanelMargin);
-    reelLayout->setSpacing(12);
+    reelLayout->setSpacing(8);
+    reelLayout->addStretch();
 
     for (int i = 0; i < 3; ++i) {
         reelLabels[i] = new QLabel(Symbols[0], reelBox);
         reelLabels[i]->setAlignment(Qt::AlignCenter);
-        reelLabels[i]->setFixedSize(72, 72);
+        reelLabels[i]->setFixedSize(68, 68);
         auto f = reelLabels[i]->font();
-        f.setPointSize(36);
+        f.setPointSize(32);
         reelLabels[i]->setFont(f);
         reelLabels[i]->setFrameShape(QFrame::StyledPanel);
         reelLabels[i]->setStyleSheet("QLabel { background: palette(base); border-radius: 8px; }");
@@ -177,6 +178,9 @@ void CasinoDialog::spin() {
 
     clicker->game.score -= betAmount;
     spinning = true;
+    resultLabel->setText(QString());
+    resultLabel->setStyleSheet("");
+    updateUi();
 
     for (int i = 0; i < 3; ++i) {
         spinTicks[i] = SpinTicksPerReel + i * 6;
@@ -206,8 +210,6 @@ void CasinoDialog::spin() {
         }
     });
     ticker->start();
-
-    updateUi();
 }
 
 void CasinoDialog::showResult() {
