@@ -43,11 +43,14 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     setFixedSize(320, 460);
 
     payLines = {
-        {{0,0,0,0,0}, QColor("#f9a825")},
-        {{1,1,1,1,1}, QColor("#ef6c00")},
-        {{2,2,2,2,2}, QColor("#6a1b9a")},
-        {{0,1,2,1,0}, QColor("#2e7d32")},
-        {{2,1,0,1,2}, QColor("#1565c0")},
+        {{0,0,0,0,0}, QColor("#f9a825")},   // top
+        {{1,1,1,1,1}, QColor("#ef6c00")},   // middle
+        {{2,2,2,2,2}, QColor("#6a1b9a")},   // bottom
+        {{0,0,1,2,2}, QColor("#2e7d32")},   // stair up
+        {{2,2,1,0,0}, QColor("#1565c0")},   // stair down
+        {{1,0,0,0,1}, QColor("#c62828")},   // V wide
+        {{1,2,2,2,1}, QColor("#00838f")},   // ^ wide
+        {{0,1,2,1,0}, QColor("#6d4c41")},   // diamond
     };
 
     auto *L = new QVBoxLayout(this);
@@ -203,13 +206,13 @@ void CasinoDialog::forceWin() {
     auto *rg = QRandomGenerator::global();
     const int lineIdx = rg->bounded(payLines.size());
     const auto &line = payLines[lineIdx];
-    const int sym = rg->bounded(1, SymbolCount); // not wild itself
-    const int length = rg->bounded(3, 6); // 3, 4, or 5
+    const int sym = rg->bounded(1, SymbolCount);
+    const int length = rg->bounded(3, 6); // 3-5
+    const int start = (length <= 3) ? rg->bounded(3) : 0;
 
-    for (int c = 0; c < length; ++c) {
+    for (int c = start; c < start + length && c < 5; ++c) {
         reels[c][line.cols[c]] = sym;
-        // sometimes replace with wild for bigger wins
-        if (length >= 4 && c > 0 && rg->bounded(100) < 20)
+        if (length >= 4 && c > start && rg->bounded(100) < 20)
             reels[c][line.cols[c]] = WildIndex;
     }
 }
@@ -220,30 +223,52 @@ void CasinoDialog::evaluateAndShow() {
             grid[col][row] = reels[col][row];
 
     qint64 totalWin = 0;
+
     for (int li = 0; li < payLines.size(); ++li) {
         const auto &line = payLines[li];
-        int sym = -1;
-        bool ok = true;
-        for (int c = 0; c < 5; ++c) {
-            int s = grid[c][line.cols[c]];
-            if (s != WildIndex) {
-                if (sym < 0) sym = s;
-                else if (sym != s) { ok = false; break; }
+
+        // Find longest consecutive match (including wilds) starting at each position
+        int bestCount = 0;
+        int bestSym = -1;
+        int bestStart = 0;
+
+        for (int start = 0; start <= 2; ++start) {
+            int baseSym = -1;
+            int count = 0;
+            for (int c = start; c < 5; ++c) {
+                int s = grid[c][line.cols[c]];
+                if (s == WildIndex) {
+                    ++count;
+                } else if (baseSym < 0) {
+                    baseSym = s;
+                    ++count;
+                } else if (s == baseSym) {
+                    ++count;
+                } else {
+                    break;
+                }
+            }
+            if (baseSym < 0) baseSym = WildIndex;
+            if (count >= 3 && count > bestCount) {
+                bestCount = count;
+                bestSym = baseSym;
+                bestStart = start;
             }
         }
-        if (!ok || sym < 0) continue;
-        int count = 0;
-        for (int c = 0; c < 5; ++c) {
-            int s = grid[c][line.cols[c]];
-            if (s == sym || s == WildIndex) ++count; else break;
+
+        if (bestCount >= 3) {
+            int payout = 0;
+            if (bestCount == 5) payout = Payouts5[bestSym];
+            else if (bestCount == 4) payout = Payouts4[bestSym];
+            else payout = Payouts3[bestSym];
+            if (payout > 0) {
+                totalWin += betAmount * payout;
+                winningLines.append(li);
+            }
         }
-        int payout = 0;
-        if (count == 5) payout = Payouts5[sym];
-        else if (count == 4) payout = Payouts4[sym];
-        else if (count == 3) payout = Payouts3[sym];
-        if (payout > 0) { totalWin += betAmount * payout; winningLines.append(li); }
     }
 
+    // Highlight winning cells
     for (int li : winningLines) {
         const auto &line = payLines[li];
         for (int c = 0; c < 5; ++c)
