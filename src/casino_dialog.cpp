@@ -3,8 +3,10 @@
 #include "clicker.h"
 #include "utils.h"
 
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QRandomGenerator>
 #include <QTimer>
@@ -82,6 +84,8 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
             c->setFixedSize(46, 46);
             c->setFrameShape(QFrame::Box);
             c->setStyleSheet("QLabel { background: palette(base); }");
+            c->setMouseTracking(true);
+            c->installEventFilter(this);
             gridLabels[col][row] = c;
             RL->addWidget(c);
         }
@@ -282,4 +286,39 @@ void CasinoDialog::evaluateAndShow() {
     } else {
         resultLabel->setText("No luck...");
     }
+}
+
+void CasinoDialog::highlightLine(int lineIdx, bool on) {
+    const auto &line = payLines[lineIdx];
+    for (int c = 0; c < 5; ++c) {
+        auto *cell = gridLabels[c][line.cols[c]];
+        if (on)
+            cell->setStyleSheet(QString("QLabel { background: %1; font-weight: bold; }").arg(line.color.name()));
+        else
+            cell->setStyleSheet("QLabel { background: palette(button); font-weight: bold; }");
+    }
+}
+
+bool CasinoDialog::eventFilter(QObject *watched, QEvent *event) {
+    for (int col = 0; col < 5; ++col)
+        for (int row = 0; row < 3; ++row)
+            if (watched == gridLabels[col][row]) {
+                if (event->type() == QEvent::Enter) {
+                    // Dim all winning lines, highlight only those containing this cell
+                    for (int li : winningLines)
+                        highlightLine(li, false);
+
+                    for (int li : winningLines) {
+                        const auto &line = payLines[li];
+                        if (line.cols[col] == row)
+                            highlightLine(li, true);
+                    }
+                } else if (event->type() == QEvent::Leave) {
+                    // Restore all winning lines
+                    for (int li : winningLines)
+                        highlightLine(li, true);
+                }
+                return false;
+            }
+    return QDialog::eventFilter(watched, event);
 }

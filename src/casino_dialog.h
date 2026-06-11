@@ -10,7 +10,7 @@
 class Clicker;
 
 struct PayLine {
-    int cols[5];   // row index per column (0=top, 1=mid, 2=bot)
+    int cols[5];
     QColor color;
 };
 
@@ -20,12 +20,16 @@ class CasinoDialog : public QDialog {
 public:
     explicit CasinoDialog(Clicker *clicker, QWidget *parent = nullptr);
 
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     void updateUi();
     void spin();
     void stopReel(int reel);
     void forceWin();
     void evaluateAndShow();
+    void highlightLine(int lineIdx, bool on);
 
     Clicker *clicker;
 
