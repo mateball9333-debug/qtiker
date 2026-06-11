@@ -11,6 +11,8 @@
 class QCloseEvent;
 class QEvent;
 class QFrame;
+class QHideEvent;
+class QShowEvent;
 class QLabel;
 class QObject;
 class QPushButton;
@@ -21,6 +23,7 @@ class LegacyClicker : public QWidget {
 
 public:
     explicit LegacyClicker(QWidget *parent = nullptr);
+    void saveGame() const;
 
 signals:
     void switchToModernRequested();
@@ -29,6 +32,8 @@ protected:
     void changeEvent(QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private slots:
     void makeClick();
@@ -47,7 +52,6 @@ private:
     void applyThemeIcons();
     void refreshUi();
     void loadGame();
-    void saveGame() const;
     QString changelogHtml() const;
 
     LegacyGameState game;

@@ -4,6 +4,7 @@
 
 class Clicker;
 class LegacyClicker;
+class QCloseEvent;
 class QStackedWidget;
 
 class GameShell : public QWidget {
@@ -11,6 +12,9 @@ class GameShell : public QWidget {
 
 public:
     explicit GameShell(QWidget *parent = nullptr);
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     enum class GameMode {

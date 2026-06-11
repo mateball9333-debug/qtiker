@@ -3,6 +3,7 @@
 #include "clicker.h"
 #include "legacy_clicker.h"
 
+#include <QCloseEvent>
 #include <QIcon>
 #include <QSettings>
 #include <QStackedWidget>
@@ -17,8 +18,8 @@ constexpr auto Legacy012ModeValue = "legacy-0.1.2";
 GameShell::GameShell(QWidget *parent) : QWidget(parent) {
     setWindowTitle("Qtiker");
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    setMinimumSize(340, 360);
-    resize(360, 420);
+    setMinimumSize(340, 420);
+    resize(360, 500);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -60,4 +61,10 @@ void GameShell::setMode(GameMode nextMode) {
                                                         : static_cast<QWidget *>(modernClicker));
     setWindowTitle(mode == GameMode::Legacy012 ? "Qtiker Legacy 0.1.2" : "Qtiker");
     saveMode();
+}
+
+void GameShell::closeEvent(QCloseEvent *event) {
+    modernClicker->saveGame();
+    legacyClicker->saveGame();
+    QWidget::closeEvent(event);
 }

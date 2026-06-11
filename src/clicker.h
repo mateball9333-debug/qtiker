@@ -13,6 +13,8 @@ class QCloseEvent;
 class QEvent;
 class QFrame;
 class QResizeEvent;
+class QHideEvent;
+class QShowEvent;
 class GachaDialog;
 class QGraphicsDropShadowEffect;
 class QLabel;
@@ -20,6 +22,7 @@ class QObject;
 class ParticleOverlay;
 class QPushButton;
 class QTimer;
+class StatusBar;
 enum class GachaEffect;
 
 class Clicker : public QWidget {
@@ -47,12 +50,15 @@ public:
 
 signals:
     void switchToLegacyRequested();
+    void saveCompleted();
 
 protected:
     void changeEvent(QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private slots:
     void makeClick();
@@ -109,7 +115,7 @@ private:
     void stopChangelogHighlight();
     void updateStatsBuffGlow();
     void markChangelogSeen();
-    void loadGame();
+    bool loadGame();
     void addArchProgress(qint64 amount);
     void maybeStartClickEffect();
     void updateClickEffect();
@@ -126,6 +132,7 @@ private:
     QElapsedTimer playTimer;
     int currentSlot = 0;
 
+    StatusBar *statusBar = nullptr;
     QLabel *scoreLabel = nullptr;
     QLabel *clickStatsLabel = nullptr;
     QLabel *incomeStatsLabel = nullptr;

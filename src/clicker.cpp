@@ -8,6 +8,7 @@
 #include "release_notes.h"
 #include "settings_dialog.h"
 #include "statistics_dialog.h"
+#include "status_bar.h"
 #include "svg_utils.h"
 #include "utils.h"
 
@@ -21,6 +22,7 @@
 #include <QFrame>
 #include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
+#include <QHideEvent>
 #include <QImage>
 #include <QLabel>
 #include <QLocale>
@@ -93,6 +95,7 @@ constexpr auto LegacyAutoUpgradeCost = "autoUpgradeCost";
 constexpr auto LegacyTotalClicks = "totalClicks";
 constexpr auto LegacyTotalClickScoreEarned = "totalClickScoreEarned";
 constexpr auto CurrentSlot = "currentSlot";
+constexpr auto Checksum = "checksum";
 }
 }
 
@@ -145,6 +148,20 @@ void Clicker::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
     if (particleOverlay) {
         particleOverlay->resize(event->size());
+    }
+}
+
+void Clicker::hideEvent(QHideEvent *event) {
+    if (incomeTimer) {
+        incomeTimer->stop();
+    }
+    QWidget::hideEvent(event);
+}
+
+void Clicker::showEvent(QShowEvent *event) {
+    QWidget::showEvent(event);
+    if (incomeTimer) {
+        incomeTimer->start();
     }
 }
 
@@ -558,8 +575,8 @@ void Clicker::showTux() {
 void Clicker::setupWindow() {
     setWindowTitle("Qtiker");
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    setMinimumSize(340, 360);
-    resize(360, 420);
+    setMinimumSize(340, 420);
+    resize(360, 500);
 }
 
 void Clicker::buildUi() {
@@ -645,6 +662,15 @@ void Clicker::buildUi() {
 
     auto *upgradesBox = createUpgradesBox();
 
+    auto *statusSeparator = new QFrame(this);
+    statusSeparator->setFrameShape(QFrame::HLine);
+    statusSeparator->setFrameShadow(QFrame::Sunken);
+
+    statusBar = new StatusBar(this);
+    statusBar->enableSaveTimer();
+    statusBar->enableSessionTimer();
+    connect(this, &Clicker::saveCompleted, statusBar, &StatusBar::onSaveCompleted);
+
     mainLayout->addLayout(topLayout);
     mainLayout->addWidget(scoreLabel);
     mainLayout->addLayout(statsLayout);
@@ -652,6 +678,8 @@ void Clicker::buildUi() {
     mainLayout->addWidget(clickButton, 1);
     mainLayout->addWidget(gachaButton);
     mainLayout->addWidget(upgradesBox);
+    mainLayout->addWidget(statusSeparator);
+    mainLayout->addWidget(statusBar);
 }
 
 QPushButton *Clicker::createTopIconButton(const QString &toolTip) {
@@ -935,6 +963,7 @@ void Clicker::refreshUi() {
     }
 
     scoreLabel->setText(formatNumber(game.score));
+    scoreLabel->setToolTip(QLocale::system().toString(game.score));
     clickStatsLabel->setText(QString("Click +%1").arg(formatNumber(displayedClick)));
     incomeStatsLabel->setText(QString("Income +%1/sec").arg(formatNumber(displayedIncome)));
     applyStatsTextColor(clickStatsLabel, clickStatsBuffGlowState, activeCardColorForEffect(GachaEffect::Click));
@@ -955,10 +984,11 @@ void Clicker::refreshUi() {
         ? game.nextArchAt - game.archProgress
         : qint64{0};
     archLabel->setToolTip(QString("Next Arch in %1 score (%2/%3)")
-                               .arg(formatNumber(progressToNextArch))
-                               .arg(formatNumber(game.archProgress))
-                               .arg(formatNumber(game.nextArchAt)));
+                                .arg(formatNumber(progressToNextArch))
+                                .arg(formatNumber(game.archProgress))
+                                .arg(formatNumber(game.nextArchAt)));
     caratButton->setText(QString("- %1").arg(formatNumber(game.carats)));
+    caratButton->setToolTip(QString("Carats: %1").arg(QLocale::system().toString(game.carats)));
 
     const int clickUpgradesBought = game.perClick > 1 ? game.perClick - 1 : 0;
     const int incomeUpgradesBought = game.perSecond > 0 ? game.perSecond : 0;
@@ -970,9 +1000,23 @@ void Clicker::refreshUi() {
     incomeUpgradeButton->setEnabled(game.score >= game.incomeCost);
 }
 
-void Clicker::loadGame() {
+bool Clicker::loadGame() {
     QSettings settings("qtiker", "qtiker");
     settings.beginGroup(QString("slot%1").arg(currentSlot));
+
+    const bool hasIntegrity = settings.contains("integrity1")
+        && settings.contains("integrity2")
+        && settings.contains("integrity3");
+    if (hasIntegrity) {
+        const qint64 m1 = settings.value("integrity1", qint64{0}).toLongLong();
+        const qint64 m2 = settings.value("integrity2", qint64{0}).toLongLong();
+        const qint64 m3 = settings.value("integrity3", qint64{0}).toLongLong();
+        if (m1 != GameState::SaveMagic1 || m2 != GameState::SaveMagic2 || m3 != GameState::SaveMagic3) {
+            settings.endGroup();
+            game.reset();
+            return false;
+        }
+    }
 
     game.score = settings.value(SettingsKeys::Score,
         settings.value(SettingsKeys::LegacyTotalClicks, game.score)).toLongLong();
@@ -1008,11 +1052,25 @@ void Clicker::loadGame() {
     game.incomeCost = settings.value(SettingsKeys::IncomeCost,
         settings.value(SettingsKeys::LegacyAutoUpgradeCost, game.incomeCost)).toInt();
     game.incomeBuffEasterEgg = settings.value(SettingsKeys::IncomeBuffEasterEgg, game.incomeBuffEasterEgg).toBool();
-    changelogSeenForVersion = settings.value(
-        SettingsKeys::LastSeenChangelogVersion, QString()
-    ).toString() == AppVersion;
+
+    if (hasIntegrity) {
+        const qint64 storedChecksum = settings.value(SettingsKeys::Checksum, qint64{0}).toLongLong();
+        const qint64 actualChecksum = game.computeChecksum();
+        if (storedChecksum != actualChecksum) {
+            settings.endGroup();
+            game.reset();
+            return false;
+        }
+    }
 
     settings.endGroup();
+
+    {
+        QSettings meta("qtiker", "qtiker");
+        changelogSeenForVersion = meta.value(
+            SettingsKeys::LastSeenChangelogVersion, QString()
+        ).toString() == AppVersion;
+    }
 
     if (game.selectedCard < 0
         || game.selectedCard >= GachaCardCount
@@ -1027,6 +1085,8 @@ void Clicker::loadGame() {
     if (!game.secondCardSlotUnlocked) {
         game.selectedCard2 = -1;
     }
+
+    return true;
 }
 
 void Clicker::saveGame() {
@@ -1065,7 +1125,14 @@ void Clicker::saveGame() {
     settings.setValue(SettingsKeys::IncomeCost, game.incomeCost);
     settings.setValue(SettingsKeys::IncomeBuffEasterEgg, game.incomeBuffEasterEgg);
 
+    settings.setValue("integrity1", GameState::SaveMagic1);
+    settings.setValue("integrity2", GameState::SaveMagic2);
+    settings.setValue("integrity3", GameState::SaveMagic3);
+    settings.setValue(SettingsKeys::Checksum, game.computeChecksum());
+
     settings.endGroup();
+
+    emit saveCompleted();
 }
 
 qint64 Clicker::currentTotalPlaySeconds() const {

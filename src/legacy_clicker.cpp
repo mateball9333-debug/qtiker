@@ -10,6 +10,7 @@
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QHideEvent>
 #include <QLabel>
 #include <QMessageBox>
 #include <QMouseEvent>
@@ -47,6 +48,20 @@ void LegacyClicker::closeEvent(QCloseEvent *event) {
     QWidget::closeEvent(event);
 }
 
+void LegacyClicker::hideEvent(QHideEvent *event) {
+    if (incomeTimer) {
+        incomeTimer->stop();
+    }
+    QWidget::hideEvent(event);
+}
+
+void LegacyClicker::showEvent(QShowEvent *event) {
+    QWidget::showEvent(event);
+    if (incomeTimer) {
+        incomeTimer->start();
+    }
+}
+
 bool LegacyClicker::eventFilter(QObject *watched, QEvent *event) {
     if (watched == clickButton && event->type() == QEvent::MouseButtonRelease) {
         auto *mouseEvent = static_cast<QMouseEvent *>(event);
@@ -61,6 +76,7 @@ bool LegacyClicker::eventFilter(QObject *watched, QEvent *event) {
 
 void LegacyClicker::makeClick() {
     game.score += game.perClick;
+    saveGame();
     refreshUi();
 }
 

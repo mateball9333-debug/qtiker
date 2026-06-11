@@ -25,6 +25,11 @@ inline constexpr ChangelogEntry Changelog024[] = {
     {ChangelogIcon::Added, "Added x10 to carat purchases."},
     {ChangelogIcon::Changed, "Renamed gacha button in main menu."},
     {ChangelogIcon::Added, "Added asset overview."},
+    {ChangelogIcon::Added, "Added a status bar at the bottom. It does things."},
+    {ChangelogIcon::Added, "Added a session timer for the time-wonderers."},
+    {ChangelogIcon::Changed, "Saves now carry magic numbers and a checksum to spot impostors."},
+    {ChangelogIcon::Changed, "Gave the window a little more room to breathe."},
+    {ChangelogIcon::Changed, "Some bugs fixed."},
 };
 
 inline constexpr ChangelogEntry Changelog023[] = {
@@ -84,7 +89,7 @@ inline constexpr ChangelogEntry Changelog010[] = {
 };
 
 inline constexpr ChangelogRelease ChangelogReleases[] = {
-    {"0.2.4", "2026-06-06", Changelog024, std::size(Changelog024)},
+    {"0.2.4", "2026-06-11", Changelog024, std::size(Changelog024)},
     {"0.2.3", "2026-06-03", Changelog023, std::size(Changelog023)},
     {"0.2.2", "2026-06-03", Changelog022, std::size(Changelog022)},
     {"0.2.1", "2026-06-03", Changelog021, std::size(Changelog021)},
