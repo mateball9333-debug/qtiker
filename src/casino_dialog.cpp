@@ -3,7 +3,6 @@
 #include "clicker.h"
 #include "utils.h"
 
-#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -50,6 +49,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle(QStringLiteral("\u8CED\u3051"));
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
+    setMinimumSize(360, 480);
     resize(360, 480);
 
     payLines = {
@@ -74,13 +74,17 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
 
     auto *gridBox = new QFrame(this);
     gridBox->setFrameShape(QFrame::StyledPanel);
-    gridBox->setStyleSheet("QFrame { background: palette(dark); border-radius: 6px; }");
-    auto *gridLayout = new QGridLayout(gridBox);
-    gridLayout->setSpacing(3);
-    gridLayout->setContentsMargins(6, 6, 6, 6);
+    gridBox->setStyleSheet("QFrame#casinoGrid { background: palette(dark); border-radius: 6px; }");
+    gridBox->setObjectName("casinoGrid");
+    auto *gridBoxLayout = new QVBoxLayout(gridBox);
+    gridBoxLayout->setSpacing(3);
+    gridBoxLayout->setContentsMargins(6, 6, 6, 6);
 
-    for (int col = 0; col < Cols; ++col) {
-        for (int row = 0; row < VisibleRows; ++row) {
+    for (int row = 0; row < VisibleRows; ++row) {
+        auto *rowLayout = new QHBoxLayout();
+        rowLayout->setSpacing(3);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        for (int col = 0; col < Cols; ++col) {
             auto *cell = new QLabel(Symbols[0], gridBox);
             cell->setAlignment(Qt::AlignCenter);
             cell->setFixedSize(48, 48);
@@ -89,9 +93,12 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker)
             cell->setFont(f);
             cell->setStyleSheet("QLabel { background: palette(base); border-radius: 6px; }");
             gridLabels[col][row] = cell;
-            gridLayout->addWidget(cell, row, col);
+            rowLayout->addWidget(cell);
         }
+        rowLayout->addStretch();
+        gridBoxLayout->addLayout(rowLayout);
     }
+    gridBoxLayout->addStretch();
 
     resultLabel = new QLabel(this);
     resultLabel->setAlignment(Qt::AlignCenter);
