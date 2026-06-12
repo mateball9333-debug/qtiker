@@ -52,6 +52,9 @@ public:
     bool isClickSoundMuted() const;
     void setCritSoundMuted(bool muted);
     bool isCritSoundMuted() const;
+    bool isCompatibilityMode() const { return m_compatibilityMode; }
+    void setCompatibilityMode(bool enabled);
+    QString compat(const QString &text) const;
 
     GameState game;
 
@@ -137,10 +140,13 @@ private:
     QString formatUpgradeText(const QString &label, int ownedCount, int cost) const;
     QString changelogHtml() const;
     void buttonChange();
+    int totalSpecialEffectValue(GachaEffect effect) const;
+    bool hasSpecialEffect(GachaEffect effect) const;
 
     QElapsedTimer playTimer;
     int currentSlot = 0;
     qreal m_masterVolume = 1.0;
+    bool m_compatibilityMode = false;
 
     StatusBar *statusBar = nullptr;
     QLabel *scoreLabel = nullptr;

@@ -20,12 +20,19 @@ Attribution requested by the original file description: Larry Ewing and The GIMP
 The following files are based on Google Material Symbols:
 
 - `assets/ui/add.svg`
+- `assets/ui/bolt.svg`
+- `assets/ui/bookmark.svg`
+- `assets/ui/candle.svg`
 - `assets/ui/changed.svg`
 - `assets/ui/clock.svg`
+- `assets/ui/hourglass.svg`
 - `assets/ui/info.svg`
 - `assets/ui/release-notes.svg`
 - `assets/ui/remove.svg`
+- `assets/ui/reset.svg`
+- `assets/ui/save.svg`
 - `assets/ui/settings.svg`
+- `assets/ui/snowflake.svg`
 - `assets/ui/statistics.svg`
 - `assets/ui/stat-down-double.svg`
 - `assets/ui/stat-down.svg`

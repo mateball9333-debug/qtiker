@@ -6,7 +6,7 @@
 
 #include <QtGlobal>
 
-inline constexpr int GachaCardCount = 6;
+inline constexpr int GachaCardCount = 11;
 
 struct GameState {
     static constexpr qint64 SaveMagic1 = 333;
@@ -33,6 +33,13 @@ struct GameState {
     std::array<int, GachaCardCount> cardCounts = {};
     int clickCost = 25;
     int incomeCost = 60;
+    int clickMultLevel = 0;
+    int incomeMultLevel = 0;
+    int gachaPityCounter = 0;
+    qint64 casinoTotalWon = 0;
+    qint64 casinoTotalSpins = 0;
+    qint64 archesFromCasino = 0;
+    qint64 totalArchesSpent = 0;
     bool incomeBuffEasterEgg = false;
 
     qint64 computeChecksum() const {
@@ -61,6 +68,9 @@ struct GameState {
         for (auto v : cardCounts) h = mix(h, static_cast<qint64>(v));
         h = mix(h, static_cast<qint64>(clickCost));
         h = mix(h, static_cast<qint64>(incomeCost));
+        if (clickMultLevel) h = mix(h, static_cast<qint64>(clickMultLevel));
+        if (incomeMultLevel) h = mix(h, static_cast<qint64>(incomeMultLevel));
+        if (gachaPityCounter) h = mix(h, static_cast<qint64>(gachaPityCounter));
         h = mix(h, incomeBuffEasterEgg ? 1 : 0);
         return h;
     }
@@ -86,6 +96,13 @@ struct GameState {
         cardCounts.fill(0);
         clickCost = 25;
         incomeCost = 60;
+        clickMultLevel = 0;
+        incomeMultLevel = 0;
+        gachaPityCounter = 0;
+        casinoTotalWon = 0;
+        casinoTotalSpins = 0;
+        archesFromCasino = 0;
+        totalArchesSpent = 0;
         incomeBuffEasterEgg = false;
     }
 };

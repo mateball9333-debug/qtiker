@@ -4,6 +4,7 @@
 #include <QDialog>
 #include <QLabel>
 #include <QPushButton>
+#include <QSoundEffect>
 #include <QTimer>
 #include <QVector>
 
@@ -61,4 +62,7 @@ private:
     QVector<int> winningLines;
     QVector<int> winStarts;
     QVector<int> winCounts;
+
+    QSoundEffect *reelStopSound = nullptr;
+    QSoundEffect *winSound = nullptr;
 };

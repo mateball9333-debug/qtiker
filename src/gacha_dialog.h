@@ -5,16 +5,29 @@
 #include <QColor>
 #include <QDialog>
 #include <QString>
+#include <QTabWidget>
+
+class QVBoxLayout;
 
 #include <array>
 
 class QLabel;
 class QPushButton;
+class Clicker;
 
 enum class GachaEffect {
     Click,
-    Income
+    Income,
+    CritChance,
+    CritPower,
+    ArchHopper,
+    Hoarder,
+    Speedrun,
 };
+
+bool isNormalEffect(GachaEffect effect);
+QString specialEffectName(GachaEffect effect);
+QString specialEffectValueText(GachaEffect effect, int specialBase, int specialPerCopy, int ownedCount);
 
 struct GachaCard {
     QString name;
@@ -24,6 +37,8 @@ struct GachaCard {
     int multiplierNumerator;
     int multiplierDenominator;
     int dropWeight;
+    int specialBase = 0;
+    int specialPerCopy = 0;
 };
 
 int debugGachaCardCount();
@@ -36,7 +51,7 @@ class GachaDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit GachaDialog(QWidget *parent = nullptr);
+    explicit GachaDialog(Clicker *clicker, QWidget *parent = nullptr);
 
     void setArchCount(int arches);
     void setInventory(const std::array<int, GachaCardCount> &cardCounts, int selectedCard, int selectedCard2);
@@ -55,6 +70,7 @@ signals:
 private:
     void updateCardButton(int index, int ownedCount, bool selected, bool selected2);
 
+    Clicker *clicker;
     QLabel *archLabel = nullptr;
     QLabel *cardLabel = nullptr;
     QLabel *messageLabel = nullptr;
@@ -62,6 +78,7 @@ private:
     QPushButton *rollButton = nullptr;
     QPushButton *slot1Button = nullptr;
     QPushButton *slot2Button = nullptr;
+    QTabWidget *cardTabs = nullptr;
     int activeSlot = 1;
     bool penaltyUpgraded = false;
 };

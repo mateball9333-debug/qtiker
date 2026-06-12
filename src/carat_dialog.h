@@ -34,4 +34,6 @@ private:
     std::array<QPushButton *, 2> buyBuffX10Buttons = {};
     QPushButton *slot2BuyButton = nullptr;
     QPushButton *penaltyUpgradeButton = nullptr;
+    QPushButton *clickMultButton = nullptr;
+    QPushButton *incomeMultButton = nullptr;
 };

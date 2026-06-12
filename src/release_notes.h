@@ -21,7 +21,7 @@ struct ChangelogRelease {
     qsizetype entryCount;
 };
 
-inline constexpr ChangelogEntry Changelog024[] = {
+inline constexpr ChangelogEntry Changelog090[] = {
     {ChangelogIcon::Added, "Added x10 to carat purchases."},
     {ChangelogIcon::Changed, "Renamed gacha button in main menu."},
     {ChangelogIcon::Added, "Added asset overview."},
@@ -30,9 +30,18 @@ inline constexpr ChangelogEntry Changelog024[] = {
     {ChangelogIcon::Changed, "Saves now carry magic numbers and a checksum to spot impostors."},
     {ChangelogIcon::Changed, "Gave the window a little more room to breathe."},
     {ChangelogIcon::Changed, "Some bugs fixed."},
-    {ChangelogIcon::Added, "Added rainbow 67 status bar."}, 
+    {ChangelogIcon::Added, "Added rainbow 67 status bar."},
     {ChangelogIcon::Added, "Added L with some combination."},
-    {ChangelogIcon::Added, "Added casino slot machine (賭け)."},
+    {ChangelogIcon::Added, "Added sound effects for clicks, buys, crits, and carat actions."},
+    {ChangelogIcon::Added, "Added master volume slider and mute toggles in settings."},
+    {ChangelogIcon::Added, "Added casino slot machine (賭け) with reel sounds and win jingle."},
+    {ChangelogIcon::Added, "Added permanent click/income multipliers (×2 … ×32) for Carats."},
+    {ChangelogIcon::Added, "Added 5 new gacha cards with special effects (crit, arch, hoard, speed)."},
+    {ChangelogIcon::Changed, "Redesigned gacha with card grid, tabs, drop rates, and hover tooltips."},
+    {ChangelogIcon::Added, "Gacha pity counter: 10 rolls without Rare+ guarantees one."},
+    {ChangelogIcon::Added, "Gacha duplicates now grant 1-10 consolation carats."},
+    {ChangelogIcon::Added, "Casino: rare chance to drop Arch on 3x+ wins (bet >= 5K, 5% chance)."},
+    {ChangelogIcon::Added, "Compatibility mode in settings: replaces Unicode symbols with ASCII."},
 };
 
 inline constexpr ChangelogEntry Changelog023[] = {
@@ -92,7 +101,7 @@ inline constexpr ChangelogEntry Changelog010[] = {
 };
 
 inline constexpr ChangelogRelease ChangelogReleases[] = {
-    {"0.2.4", "2026-06-11", Changelog024, std::size(Changelog024)},
+    {"0.9.0", "2026-06-12", Changelog090, std::size(Changelog090)},
     {"0.2.3", "2026-06-03", Changelog023, std::size(Changelog023)},
     {"0.2.2", "2026-06-03", Changelog022, std::size(Changelog022)},
     {"0.2.1", "2026-06-03", Changelog021, std::size(Changelog021)},

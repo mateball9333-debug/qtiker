@@ -17,4 +17,5 @@ private:
     QSlider *volumeSlider = nullptr;
     QCheckBox *muteClicksCheck = nullptr;
     QCheckBox *muteCritCheck = nullptr;
+    QCheckBox *compatCheck = nullptr;
 };

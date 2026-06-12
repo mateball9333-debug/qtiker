@@ -41,6 +41,7 @@
 #include <QSvgRenderer>
 #include <QTextBrowser>
 #include <QTimer>
+#include <QVector>
 #include <QVBoxLayout>
 
 #include <array>
@@ -90,6 +91,13 @@ constexpr auto SecondCardPenaltyUpgraded = "secondCardPenaltyUpgraded";
 constexpr auto ClickCost = "clickCost";
 constexpr auto IncomeCost = "incomeCost";
 constexpr auto IncomeBuffEasterEgg = "incomeBuffEasterEgg";
+constexpr auto ClickMultLevel = "clickMultLevel";
+constexpr auto IncomeMultLevel = "incomeMultLevel";
+constexpr auto GachaPityCounter = "gachaPityCounter";
+constexpr auto CasinoTotalWon = "casinoTotalWon";
+constexpr auto CasinoTotalSpins = "casinoTotalSpins";
+constexpr auto ArchesFromCasino = "archesFromCasino";
+constexpr auto TotalArchesSpent = "totalArchesSpent";
 constexpr auto LastSeenChangelogVersion = "lastSeenChangelogVersion";
 constexpr auto BuffExpiresAtPrefix = "buffExpiresAt";
 constexpr auto LegacyClickPower = "clickPower";
@@ -108,6 +116,7 @@ Clicker::Clicker(QWidget *parent) : QWidget(parent) {
     {
         QSettings meta("qtiker", "qtiker");
         m_masterVolume = meta.value("masterVolume", 1.0).toDouble();
+        m_compatibilityMode = meta.value("compatibilityMode", false).toBool();
         currentSlot = meta.value(SettingsKeys::CurrentSlot, 0).toInt();
         const bool hasRootData = meta.contains(SettingsKeys::Score);
         const bool hasSlotData = meta.contains(QString("slot0/%1").arg(SettingsKeys::Score));
@@ -229,19 +238,31 @@ void Clicker::makeClick() {
     const auto cardEarned = applyActiveCardBonus(game.perClick, GachaEffect::Click);
     const auto buffed = applyTimedBuffBonuses(cardEarned, TimedBuffEffect::Click);
 
+    const int archBonus = totalSpecialEffectValue(GachaEffect::ArchHopper);
+    const auto archBoosted = (archBonus > 0 && game.arches > 0)
+        ? applyMultiplier(buffed, 100 + archBonus * game.arches, 100)
+        : buffed;
+
+    const int bonusCrit = totalSpecialEffectValue(GachaEffect::CritChance);
+    const int critPower = totalSpecialEffectValue(GachaEffect::CritPower);
+    const int bigCritThreshold = 1 + bonusCrit / 5;
+    const int totalCritThreshold = 6 + bonusCrit;
+
     const int roll = QRandomGenerator::global()->bounded(100);
     qint64 earned;
-    if (roll < 1) {
-        earned = buffed * 5;
+    if (roll < bigCritThreshold) {
+        earned = archBoosted * (5 * (critPower > 0 ? critPower : 1));
         triggerCritBurst(true);
         if (critSound && !isCritSoundMuted()) critSound->play();
-    } else if (roll < 6) {
-        earned = buffed * 2;
+    } else if (roll < totalCritThreshold) {
+        earned = archBoosted * (2 * (critPower > 0 ? critPower : 1));
         triggerCritBurst(false);
         if (critSound && !isCritSoundMuted()) critSound->play();
     } else {
-        earned = buffed;
+        earned = archBoosted;
     }
+
+    earned <<= game.clickMultLevel;
 
     game.score += earned;
     game.totalClicks += 1;
@@ -292,10 +313,19 @@ void Clicker::addPassiveIncome() {
 
     const auto cardEarned = applyActiveCardBonus(game.perSecond, GachaEffect::Income);
     const auto buffed = applyTimedBuffBonuses(cardEarned, TimedBuffEffect::Income);
-    const auto earned = game.incomeBuffEasterEgg ? applyMultiplierRoundedUp(buffed, 11, 10) : buffed;
-    game.score += earned;
-    game.totalScoreEarned += earned;
-    addArchProgress(earned);
+    const auto egg = game.incomeBuffEasterEgg ? applyMultiplierRoundedUp(buffed, 11, 10) : buffed;
+
+    const int hoardBonus = totalSpecialEffectValue(GachaEffect::Hoarder);
+    const auto hoarded = (hoardBonus > 0 && game.score > 0)
+        ? applyMultiplier(egg, 100 + hoardBonus * (game.score / 10000), 100)
+        : egg;
+
+    const auto sped = hasSpecialEffect(GachaEffect::Speedrun) ? hoarded * 2 : hoarded;
+
+    const auto finalEarned = sped << game.incomeMultLevel;
+    game.score += finalEarned;
+    game.totalScoreEarned += finalEarned;
+    addArchProgress(finalEarned);
     saveGame();
     refreshUi();
 }
@@ -454,7 +484,7 @@ void Clicker::showInfo() {
 }
 
 void Clicker::showGacha() {
-    auto *dialog = new GachaDialog(this);
+    auto *dialog = new GachaDialog(this, this);
     dialog->setArchCount(game.arches);
     dialog->setSecondCardSlotEnabled(game.secondCardSlotUnlocked);
     dialog->setSecondCardPenaltyUpgraded(game.secondCardPenaltyUpgraded);
@@ -522,7 +552,7 @@ void Clicker::showLore() {
 
     auto *dialog = new QDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle("\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B");
+    dialog->setWindowTitle(compat("\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B\u304B"));
     dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
     dialog->resize(480, 420);
 
@@ -775,7 +805,7 @@ void Clicker::buildUi() {
     clickStatsLabel->setAlignment(Qt::AlignCenter);
     setWidgetFont(clickStatsLabel, clickStatsLabel->font().pointSize(), true);
 
-    auto *separator = new QLabel(" · ", this);
+    auto *separator = new QLabel(compat(" \u00B7 "), this);
     separator->setAlignment(Qt::AlignCenter);
     setWidgetFont(separator, separator->font().pointSize(), true);
 
@@ -829,7 +859,7 @@ void Clicker::buildUi() {
     gachaButton->setMinimumHeight(32);
     connect(gachaButton, &QPushButton::clicked, this, &Clicker::showGacha);
 
-    casinoButton = new QPushButton(QStringLiteral("\u8CED\u3051"), this);
+    casinoButton = new QPushButton(compat(QStringLiteral("\u8CED\u3051")), this);
     casinoButton->setMinimumHeight(32);
     connect(casinoButton, &QPushButton::clicked, this, &Clicker::showCasino);
 
@@ -840,6 +870,7 @@ void Clicker::buildUi() {
     statusSeparator->setFrameShadow(QFrame::Sunken);
 
     statusBar = new StatusBar(this);
+    statusBar->setCompatMode(m_compatibilityMode);
     statusBar->enableSaveTimer();
     statusBar->enableSessionTimer();
     connect(this, &Clicker::saveCompleted, statusBar, &StatusBar::onSaveCompleted);
@@ -1124,10 +1155,10 @@ void Clicker::markChangelogSeen() {
 }
 
 void Clicker::refreshUi() {
-    const auto displayedClick = applyTimedBuffBonuses(
+    const auto displayedClick = (applyTimedBuffBonuses(
         applyActiveCardBonus(game.perClick, GachaEffect::Click),
         TimedBuffEffect::Click
-    );
+    )) << game.clickMultLevel;
     auto displayedIncome = applyTimedBuffBonuses(
         applyActiveCardBonus(game.perSecond, GachaEffect::Income),
         TimedBuffEffect::Income
@@ -1135,6 +1166,7 @@ void Clicker::refreshUi() {
     if (game.incomeBuffEasterEgg) {
         displayedIncome = applyMultiplierRoundedUp(displayedIncome, 11, 10);
     }
+    displayedIncome <<= game.incomeMultLevel;
 
     scoreLabel->setText(formatNumber(game.score));
     scoreLabel->setToolTip(QLocale::system().toString(game.score));
@@ -1226,6 +1258,18 @@ bool Clicker::loadGame() {
     game.incomeCost = settings.value(SettingsKeys::IncomeCost,
         settings.value(SettingsKeys::LegacyAutoUpgradeCost, game.incomeCost)).toInt();
     game.incomeBuffEasterEgg = settings.value(SettingsKeys::IncomeBuffEasterEgg, game.incomeBuffEasterEgg).toBool();
+    game.clickMultLevel = settings.value(SettingsKeys::ClickMultLevel, game.clickMultLevel).toInt();
+    game.incomeMultLevel = settings.value(SettingsKeys::IncomeMultLevel, game.incomeMultLevel).toInt();
+    if (game.clickMultLevel < 0) game.clickMultLevel = 0;
+    if (game.clickMultLevel > ClickMultMaxLevel) game.clickMultLevel = ClickMultMaxLevel;
+    if (game.incomeMultLevel < 0) game.incomeMultLevel = 0;
+    if (game.incomeMultLevel > IncomeMultMaxLevel) game.incomeMultLevel = IncomeMultMaxLevel;
+    game.gachaPityCounter = settings.value(SettingsKeys::GachaPityCounter, game.gachaPityCounter).toInt();
+    if (game.gachaPityCounter < 0) game.gachaPityCounter = 0;
+    game.casinoTotalWon = settings.value(SettingsKeys::CasinoTotalWon, game.casinoTotalWon).toLongLong();
+    game.casinoTotalSpins = settings.value(SettingsKeys::CasinoTotalSpins, game.casinoTotalSpins).toLongLong();
+    game.archesFromCasino = settings.value(SettingsKeys::ArchesFromCasino, game.archesFromCasino).toLongLong();
+    game.totalArchesSpent = settings.value(SettingsKeys::TotalArchesSpent, game.totalArchesSpent).toLongLong();
 
     if (hasIntegrity) {
         const qint64 storedChecksum = settings.value(SettingsKeys::Checksum, qint64{0}).toLongLong();
@@ -1298,6 +1342,13 @@ void Clicker::saveGame() {
     settings.setValue(SettingsKeys::ClickCost, game.clickCost);
     settings.setValue(SettingsKeys::IncomeCost, game.incomeCost);
     settings.setValue(SettingsKeys::IncomeBuffEasterEgg, game.incomeBuffEasterEgg);
+    settings.setValue(SettingsKeys::ClickMultLevel, game.clickMultLevel);
+    settings.setValue(SettingsKeys::IncomeMultLevel, game.incomeMultLevel);
+    settings.setValue(SettingsKeys::GachaPityCounter, game.gachaPityCounter);
+    settings.setValue(SettingsKeys::CasinoTotalWon, game.casinoTotalWon);
+    settings.setValue(SettingsKeys::CasinoTotalSpins, game.casinoTotalSpins);
+    settings.setValue(SettingsKeys::ArchesFromCasino, game.archesFromCasino);
+    settings.setValue(SettingsKeys::TotalArchesSpent, game.totalArchesSpent);
 
     settings.setValue("integrity1", GameState::SaveMagic1);
     settings.setValue("integrity2", GameState::SaveMagic2);
@@ -1383,19 +1434,42 @@ void Clicker::rollGacha(GachaDialog *dialog) {
     }
 
     game.arches -= 1;
-    int roll = QRandomGenerator::global()->bounded(debugGachaTotalWeight());
-    int index = 0;
-    for (; index < debugGachaCardCount(); ++index) {
-        roll -= debugGachaCardAt(index).dropWeight;
-        if (roll < 0) {
-            break;
+    game.totalArchesSpent += 1;
+    int index;
+
+    if (game.gachaPityCounter >= GachaPityThreshold) {
+        QVector<int> candidates;
+        for (int i = 0; i < debugGachaCardCount(); ++i) {
+            if (debugGachaCardAt(i).dropWeight <= RarePlusMaxWeight)
+                candidates.append(i);
         }
-    }
-    if (index >= debugGachaCardCount()) {
-        index = debugGachaCardCount() - 1;
+        index = candidates[QRandomGenerator::global()->bounded(candidates.size())];
+    } else {
+        int roll = QRandomGenerator::global()->bounded(debugGachaTotalWeight());
+        index = 0;
+        for (; index < debugGachaCardCount(); ++index) {
+            roll -= debugGachaCardAt(index).dropWeight;
+            if (roll < 0) break;
+        }
+        if (index >= debugGachaCardCount())
+            index = debugGachaCardCount() - 1;
     }
 
+    const bool pulledRare = debugGachaCardAt(index).dropWeight <= RarePlusMaxWeight;
+    if (pulledRare)
+        game.gachaPityCounter = 0;
+    else
+        game.gachaPityCounter += 1;
+
     game.cardCounts[index] += 1;
+
+    const bool wasDuplicate = game.cardCounts[index] > 1;
+    qint64 consolation = 0;
+    if (wasDuplicate) {
+        consolation = QRandomGenerator::global()->bounded(1, 11);
+        game.carats += consolation;
+    }
+
     if (game.selectedCard == -1) {
         game.selectedCard = index;
     } else if (game.secondCardSlotUnlocked && game.selectedCard2 == -1 && index != game.selectedCard) {
@@ -1405,6 +1479,10 @@ void Clicker::rollGacha(GachaDialog *dialog) {
     dialog->setArchCount(game.arches);
     dialog->setInventory(game.cardCounts, game.selectedCard, game.selectedCard2);
     dialog->showCard(debugGachaCardAt(index), game.cardCounts[index]);
+    if (wasDuplicate)
+        dialog->showMessage(QString("Card rolled. Duplicate: +%1 carats.").arg(consolation));
+    else
+        dialog->showMessage("Card rolled.");
 
     saveGame();
     refreshUi();
@@ -1595,6 +1673,39 @@ bool Clicker::isCritSoundMuted() const {
     return QSettings("qtiker", "qtiker").value("muteCritSound", false).toBool();
 }
 
+void Clicker::setCompatibilityMode(bool enabled) {
+    m_compatibilityMode = enabled;
+    QSettings("qtiker", "qtiker").setValue("compatibilityMode", enabled);
+    if (statusBar) statusBar->setCompatMode(enabled);
+    refreshUi();
+}
+
+QString Clicker::compat(const QString &text) const {
+    if (!m_compatibilityMode) return text;
+    QString r = text;
+    r.replace(QChar(0x2605), "*");           // ★
+    r.replace(QChar(0x2665), "H");           // ♥
+    r.replace(QChar(0x2666), "D");           // ♦
+    r.replace(QChar(0x2663), "C");           // ♣
+    r.replace(QChar(0x2660), "S");           // ♠
+    r.replace(QChar(0x25C6), "<>");          // ◆
+    r.replace(QChar(0x25CF), "o");           // ●
+    r.replace(QChar(0x00D7), "x");           // ×
+    r.replace(QChar(0x2192), "->");          // →
+    r.replace(QChar(0x2051), "*'");          // ⁑
+    r.replace(QChar(0x25A0), "#");           // ■
+    r.replace(QChar(0x00B7), "-");           // ·
+    r.replace(QChar(0x2022), "-");           // •
+    r.replace(QChar(0x2713), "v");           // ✓
+    r.replace(QChar(0x00BB), ">>");          // »
+    r.replace(QChar(0x266B), "~");           // ♫
+    r.replace(QChar(0x25B6), ">");           // ▶
+    r.replace(QStringLiteral("\u8CED\u3051"), "Casino");
+    r.replace(QStringLiteral("\u30DE\u30B7\u30FC\u30F3"), "Machine");
+    r.replace(QStringLiteral("\u30B9\u30D4\u30F3"), "Spin");
+    return r;
+}
+
 QString Clicker::changelogHtml() const {
     const auto addIcon = tintedSvgDataUri(":/assets/ui/add.svg", QColor("#2e7d32"), QSize(14, 14));
     const auto changedIcon = tintedSvgDataUri(":/assets/ui/changed.svg", QColor("#ef6c00"), QSize(13, 13));
@@ -1633,4 +1744,33 @@ QString Clicker::changelogHtml() const {
     }
 
     return html;
+}
+
+int Clicker::totalSpecialEffectValue(GachaEffect effect) const {
+    int result = 0;
+    auto add = [&](int slotIdx) {
+        if (slotIdx < 0 || slotIdx >= GachaCardCount) return;
+        const auto card = debugGachaCardAt(slotIdx);
+        if (card.effect != effect) return;
+        int copies = effectiveCardCopies(game.cardCounts[slotIdx]);
+        int val = card.specialBase + (copies - 1) * card.specialPerCopy;
+        if (slotIdx == game.selectedCard2) {
+            const int penalty = game.secondCardPenaltyUpgraded ? 33 : 55;
+            val = val * (100 - penalty) / 100;
+        }
+        if (val > 0) result += val;
+    };
+    add(game.selectedCard);
+    add(game.selectedCard2);
+    return result;
+}
+
+bool Clicker::hasSpecialEffect(GachaEffect effect) const {
+    if (game.selectedCard >= 0 && game.selectedCard < GachaCardCount) {
+        if (debugGachaCardAt(game.selectedCard).effect == effect) return true;
+    }
+    if (game.secondCardSlotUnlocked && game.selectedCard2 >= 0 && game.selectedCard2 < GachaCardCount) {
+        if (debugGachaCardAt(game.selectedCard2).effect == effect) return true;
+    }
+    return false;
 }

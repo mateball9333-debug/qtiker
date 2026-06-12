@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
-project(qtiker VERSION 0.2.4 LANGUAGES CXX)
+project(qtiker VERSION 0.9.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CTest)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Svg Multimedia)
+find_package(Qt6 6.3 REQUIRED COMPONENTS Widgets Svg Multimedia)
 qt_standard_project_setup()
 
 configure_file(qtiker.desktop.in qtiker.desktop @ONLY)
@@ -63,6 +63,7 @@ set(ResourceFiles
     assets/ui/stat-up-double.svg
     assets/ui/stat-up.svg
     assets/ui/bolt.svg
+    assets/ui/bookmark.svg
     assets/ui/save.svg
     assets/ui/candle.svg
     assets/ui/hourglass.svg
@@ -73,6 +74,8 @@ set(ResourceFiles
     assets/sound/burn.wav
     assets/sound/buff.wav
     assets/sound/unlock.wav
+    assets/sound/reel_stop.wav
+    assets/sound/win.wav
 )
 
 file(GLOB LoreTxts RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}

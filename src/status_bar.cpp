@@ -41,6 +41,10 @@ StatusBar::StatusBar(QWidget *parent)
     connect(refreshTimer, &QTimer::timeout, this, &StatusBar::refresh);
 }
 
+void StatusBar::setCompatMode(bool enabled) {
+    compatMode = enabled;
+}
+
 void StatusBar::enableSaveTimer() {
     if (saveTimerLabel) {
         return;
@@ -50,7 +54,7 @@ void StatusBar::enableSaveTimer() {
         addSeparator();
     }
 
-    saveTimerLabel = makeLabel("Saved \u2022 --");
+    saveTimerLabel = makeLabel(compatMode ? "Saved - --" : "Saved \u2022 --");
     barLayout->insertWidget(barLayout->count() - 1, saveTimerLabel);
 
     hasContent = true;
@@ -68,7 +72,7 @@ void StatusBar::enableSessionTimer() {
         addSeparator();
     }
 
-    sessionLabel = makeLabel("Session \u2022 --");
+    sessionLabel = makeLabel(compatMode ? "Session - --" : "Session \u2022 --");
     barLayout->insertWidget(barLayout->count() - 1, sessionLabel);
 
     hasContent = true;
@@ -118,9 +122,11 @@ void StatusBar::refreshSaveTimer() {
 
     const qint64 secs = timeSinceSave.elapsed() / 1000;
     if (secs < 5) {
-        saveTimerLabel->setText(QStringLiteral("Saved \u2022 now"));
+        saveTimerLabel->setText(compatMode ? "Saved - now" : QStringLiteral("Saved \u2022 now"));
     } else {
-        saveTimerLabel->setText(QString("Saved \u2022 %1 ago").arg(fmtDuration(secs)));
+        saveTimerLabel->setText(compatMode
+            ? QString("Saved - %1 ago").arg(fmtDuration(secs))
+            : QString("Saved \u2022 %1 ago").arg(fmtDuration(secs)));
     }
 }
 
@@ -130,7 +136,9 @@ void StatusBar::refreshSessionTimer() {
     }
 
     const qint64 secs = sessionTimer.elapsed() / 1000;
-    sessionLabel->setText(QString("Session \u2022 %1").arg(fmtDuration(secs)));
+    sessionLabel->setText(compatMode
+        ? QString("Session - %1").arg(fmtDuration(secs))
+        : QString("Session \u2022 %1").arg(fmtDuration(secs)));
 
     const bool isRainbow = QString::number(secs).contains("67");
     if (isRainbow) {

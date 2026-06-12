@@ -15,6 +15,7 @@ public:
 
     void enableSaveTimer();
     void enableSessionTimer();
+    void setCompatMode(bool enabled);
 
 public slots:
     void onSaveCompleted();
@@ -38,4 +39,5 @@ private:
     QGraphicsDropShadowEffect *sessionGlow = nullptr;
     int glowHue = 0;
     bool hasContent = false;
+    bool compatMode = false;
 };

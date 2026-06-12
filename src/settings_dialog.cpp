@@ -9,6 +9,7 @@
 #include <QCheckBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSettings>
 #include <QSlider>
@@ -20,7 +21,7 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle("Qtiker Settings");
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    resize(320, 260);
+    resize(320, 310);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
@@ -191,9 +192,19 @@ SettingsDialog::SettingsDialog(Clicker *parentClicker)
         clicker->setCritSoundMuted(checked);
     });
 
+    compatCheck = new QCheckBox("Compatibility mode (ASCII)", volumeBox);
+    compatCheck->setChecked(clicker->isCompatibilityMode());
+    connect(compatCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        clicker->setCompatibilityMode(checked);
+        QMessageBox::information(this, "Compatibility mode",
+            checked ? "ASCII mode enabled. Reopen windows to apply."
+                    : "Unicode mode enabled. Reopen windows to apply.");
+    });
+
     volumeLayout->addLayout(volumeRow);
     volumeLayout->addWidget(muteClicksCheck);
     volumeLayout->addWidget(muteCritCheck);
+    volumeLayout->addWidget(compatCheck);
 
     layout->addWidget(volumeBox);
     layout->addStretch();

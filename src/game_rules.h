@@ -19,6 +19,20 @@ inline constexpr qint64 CaratBurnCost = 1000;
 inline constexpr qint64 CaratBurnReward = 1;
 inline constexpr qint64 SecondCardSlotCost = 25;
 inline constexpr qint64 PenaltyUpgradeCost = 10;
+inline constexpr int ClickMultBaseCost = 50;
+inline constexpr int ClickMultMaxLevel = 5;
+inline constexpr int IncomeMultBaseCost = 50;
+inline constexpr int IncomeMultMaxLevel = 5;
+
+inline int permanentMultCost(int level, int baseCost) {
+    int c = baseCost;
+    for (int i = 0; i < level; ++i)
+        c *= 3;
+    return c;
+}
+
+inline constexpr int GachaPityThreshold = 10;
+inline constexpr int RarePlusMaxWeight = 14;
 
 struct TimedBuffRule {
     TimedBuff buff;

@@ -15,7 +15,7 @@ StatisticsDialog::StatisticsDialog(Clicker *parentClicker)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle("Qtiker Statistics");
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
-    resize(340, 260);
+    resize(340, 380);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
@@ -47,11 +47,16 @@ StatisticsDialog::StatisticsDialog(Clicker *parentClicker)
         QString("Total Arch's earned: %1").arg(clicker->formatNumber(clicker->game.totalArchesEarned)),
         statsBox
     );
+    auto *archesSpentLabel = new QLabel(
+        QString("Arch's spent on gacha: %1").arg(clicker->formatNumber(clicker->game.totalArchesSpent)),
+        statsBox
+    );
 
     statsLayout->addWidget(totalClicksLabel);
     statsLayout->addWidget(earnedScoreLabel);
     statsLayout->addWidget(playTimeLabel);
     statsLayout->addWidget(archesLabel);
+    statsLayout->addWidget(archesSpentLabel);
 
     auto *uselessBox = new QFrame(this);
     uselessBox->setFrameShape(QFrame::StyledPanel);
@@ -71,11 +76,40 @@ StatisticsDialog::StatisticsDialog(Clicker *parentClicker)
     uselessLayout->addWidget(uselessTitle);
     uselessLayout->addWidget(rightClicksLabel);
 
+    auto *casinoBox = new QFrame(this);
+    casinoBox->setFrameShape(QFrame::StyledPanel);
+
+    auto *casinoLayout = new QVBoxLayout(casinoBox);
+    casinoLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    casinoLayout->setSpacing(DialogSpacing);
+
+    auto *casinoTitle = new QLabel("Casino", casinoBox);
+    setWidgetFont(casinoTitle, casinoTitle->font().pointSize(), true);
+
+    auto *casinoWonLabel = new QLabel(
+        QString("Score won: %1").arg(clicker->formatNumber(clicker->game.casinoTotalWon)),
+        casinoBox
+    );
+    auto *casinoSpinsLabel = new QLabel(
+        QString("Spins: %1").arg(clicker->formatNumber(clicker->game.casinoTotalSpins)),
+        casinoBox
+    );
+    auto *casinoArchesLabel = new QLabel(
+        QString("Arch's from casino: %1").arg(clicker->formatNumber(clicker->game.archesFromCasino)),
+        casinoBox
+    );
+
+    casinoLayout->addWidget(casinoTitle);
+    casinoLayout->addWidget(casinoWonLabel);
+    casinoLayout->addWidget(casinoSpinsLabel);
+    casinoLayout->addWidget(casinoArchesLabel);
+
     auto *closeButton = new QPushButton("Close", this);
     connect(closeButton, &QPushButton::clicked, this, &QDialog::accept);
 
     layout->addWidget(title);
     layout->addWidget(statsBox);
+    layout->addWidget(casinoBox);
     layout->addWidget(uselessBox);
     layout->addStretch();
     layout->addWidget(closeButton);

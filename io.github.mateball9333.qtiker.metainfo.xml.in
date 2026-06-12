@@ -20,7 +20,7 @@
   </categories>
   <url type="homepage">https://github.com/mateball9333-debug/qtiker</url>
   <releases>
-    <release version="@PROJECT_VERSION@" date="2026-06-03" />
+    <release version="@PROJECT_VERSION@" date="2026-06-12" />
   </releases>
   <content_rating type="oars-1.1" />
 </component>

@@ -9,6 +9,7 @@
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QRandomGenerator>
+#include <QSoundEffect>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -22,8 +23,8 @@ const QString Symbols[SymbolCount] = {
 };
 constexpr int WildIndex = 0;
 const int Payouts3[SymbolCount] = {1, 1, 1, 0, 0, 0, 0};
-const int Payouts4[SymbolCount] = {4, 2, 1, 1, 0, 0, 0};
-const int Payouts5[SymbolCount] = {20, 8, 6, 4, 3, 2, 1};
+const int Payouts4[SymbolCount] = {5, 3, 1, 1, 0, 0, 0};
+const int Payouts5[SymbolCount] = {25, 11, 7, 5, 4, 3, 2};
 constexpr qint64 MinBet = 10;
 constexpr qint64 BetStep = 10;
 
@@ -40,7 +41,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     : QDialog(parent), clicker(parentClicker)
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setWindowTitle(QStringLiteral("\u8CED\u3051"));
+    setWindowTitle(clicker->compat(QStringLiteral("\u8CED\u3051")));
     setWindowIcon(QIcon(":/assets/qtiker-64.png"));
     setFixedSize(320, 500);
 
@@ -55,11 +56,19 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
         {{0,1,2,1,0}, QColor("#6d4c41")},
     };
 
+    reelStopSound = new QSoundEffect(this);
+    reelStopSound->setSource(QUrl("qrc:/assets/sound/reel_stop.wav"));
+    reelStopSound->setVolume(clicker->masterVolume());
+
+    winSound = new QSoundEffect(this);
+    winSound->setSource(QUrl("qrc:/assets/sound/win.wav"));
+    winSound->setVolume(clicker->masterVolume());
+
     auto *L = new QVBoxLayout(this);
     L->setContentsMargins(12, 12, 12, 12);
     L->setSpacing(6);
 
-    auto *title = new QLabel(QStringLiteral("\u8CED\u3051 \u30DE\u30B7\u30FC\u30F3"), this);
+    auto *title = new QLabel(clicker->compat(QStringLiteral("\u8CED\u3051 \u30DE\u30B7\u30FC\u30F3")), this);
     title->setAlignment(Qt::AlignCenter);
     title->setFixedHeight(24);
     L->addWidget(title);
@@ -95,7 +104,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
 
     resultLabel = new QLabel(this);
     resultLabel->setAlignment(Qt::AlignCenter);
-    resultLabel->setFixedHeight(24);
+    resultLabel->setMinimumHeight(36);
     L->addWidget(resultLabel);
 
     auto *betRow = new QHBoxLayout();
@@ -125,7 +134,7 @@ CasinoDialog::CasinoDialog(Clicker *parentClicker, QWidget *parent)
     }
     L->addLayout(presetRow);
 
-    spinButton = new QPushButton(QStringLiteral("\u30B9\u30D4\u30F3"), this);
+    spinButton = new QPushButton(clicker->compat(QStringLiteral("\u30B9\u30D4\u30F3")), this);
     spinButton->setMinimumHeight(36);
     L->addWidget(spinButton);
 
@@ -195,7 +204,7 @@ void CasinoDialog::updateUi() {
     betLabel->setText("Bet: " + fmtScore(betAmount));
     for (int col = 0; col < 5; ++col)
         for (int row = 0; row < 3; ++row)
-            gridLabels[col][row]->setText(Symbols[reels[col][row]]);
+            gridLabels[col][row]->setText(clicker->compat(Symbols[reels[col][row]]));
     bool can = !spinning && clicker->game.score >= betAmount;
     spinButton->setEnabled(can || spinning);
     betDownButton->setEnabled(!spinning);
@@ -203,12 +212,13 @@ void CasinoDialog::updateUi() {
     maxBetButton->setEnabled(!spinning);
     for (auto *b : presetButtons)
         b->setEnabled(!spinning);
-    spinButton->setText(spinning ? "Skip \u00BB" : QStringLiteral("\u30B9\u30D4\u30F3"));
+    spinButton->setText(spinning ? clicker->compat("Skip \u00BB") : clicker->compat(QStringLiteral("\u30B9\u30D4\u30F3")));
 }
 
 void CasinoDialog::spin() {
     if (spinning || clicker->game.score < betAmount) return;
     clicker->game.score -= betAmount;
+    clicker->game.casinoTotalSpins += 1;
     spinning = true;
     stoppingReel = 0;
     stopTick = 0;
@@ -233,6 +243,7 @@ void CasinoDialog::stopReel(int reel) {
         updateUi();
         return;
     }
+    if (reelStopSound) reelStopSound->play();
     ++stoppingReel;
     stopTick = 0;
 }
@@ -305,7 +316,18 @@ void CasinoDialog::evaluateAndShow() {
 
     if (totalWin > 0) {
         clicker->game.score += totalWin;
-        resultLabel->setText(QStringLiteral("\u2728 Won %1 \u2728").arg(fmtScore(totalWin)));
+        clicker->game.casinoTotalWon += totalWin;
+        resultLabel->setText(clicker->compat(QStringLiteral("\u2605 Won %1 \u2605")).arg(fmtScore(totalWin)));
+
+        if (totalWin > betAmount * 2 && betAmount >= 5000
+            && QRandomGenerator::global()->bounded(100) < 15) {
+            clicker->game.arches += 1;
+            clicker->game.totalArchesEarned += 1;
+            clicker->game.archesFromCasino += 1;
+            resultLabel->setText(resultLabel->text() + clicker->compat(QStringLiteral("\n+\u2605 1 Arch!")));
+        }
+
+        if (winSound) winSound->play();
     } else {
         resultLabel->setText("No luck...");
     }

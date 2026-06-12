@@ -16,7 +16,7 @@ CaratDialog::CaratDialog(Clicker *parentClicker)
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle("Carat");
     setWindowIcon(QIcon(":/assets/ui/carat.png"));
-    resize(340, 280);
+    resize(340, 380);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
@@ -174,6 +174,35 @@ CaratDialog::CaratDialog(Clicker *parentClicker)
     layout->addWidget(buffBox);
     layout->addWidget(slot2BuyButton);
     layout->addWidget(penaltyUpgradeButton);
+
+    clickMultButton = new QPushButton(this);
+    connect(clickMultButton, &QPushButton::clicked, this, [this]() {
+        if (clicker->game.clickMultLevel >= ClickMultMaxLevel) return;
+        const qint64 cost = permanentMultCost(clicker->game.clickMultLevel, ClickMultBaseCost);
+        if (clicker->game.carats < cost) return;
+        clicker->game.carats -= cost;
+        ++clicker->game.clickMultLevel;
+        if (unlockSound) unlockSound->play();
+        clicker->saveGame();
+        clicker->refreshUi();
+        updateUi();
+    });
+    layout->addWidget(clickMultButton);
+
+    incomeMultButton = new QPushButton(this);
+    connect(incomeMultButton, &QPushButton::clicked, this, [this]() {
+        if (clicker->game.incomeMultLevel >= IncomeMultMaxLevel) return;
+        const qint64 cost = permanentMultCost(clicker->game.incomeMultLevel, IncomeMultBaseCost);
+        if (clicker->game.carats < cost) return;
+        clicker->game.carats -= cost;
+        ++clicker->game.incomeMultLevel;
+        if (unlockSound) unlockSound->play();
+        clicker->saveGame();
+        clicker->refreshUi();
+        updateUi();
+    });
+    layout->addWidget(incomeMultButton);
+
     layout->addStretch();
     layout->addWidget(closeButton);
 
@@ -254,12 +283,42 @@ void CaratDialog::updateUi() {
             penaltyUpgradeButton->setText("Penalty reduced to 33%");
             penaltyUpgradeButton->setEnabled(false);
         } else {
-            penaltyUpgradeButton->setText(QString("Reduce penalty 55% → 33%  %1 Carat")
-                                              .arg(clicker->formatNumber(PenaltyUpgradeCost)));
+            penaltyUpgradeButton->setText(clicker->compat(QString("Reduce penalty 55% \u2192 33%  %1 Carat")
+                                              .arg(clicker->formatNumber(PenaltyUpgradeCost))));
             penaltyUpgradeButton->setEnabled(clicker->game.carats >= PenaltyUpgradeCost);
         }
         penaltyUpgradeButton->setVisible(true);
     } else {
         penaltyUpgradeButton->setVisible(false);
+    }
+
+    {
+        const int lvl = clicker->game.clickMultLevel;
+        if (lvl >= ClickMultMaxLevel) {
+            clickMultButton->setText(clicker->compat(QString("Click multiplier: \u00D7%1 (max)")).arg(1 << lvl));
+            clickMultButton->setEnabled(false);
+        } else {
+            const qint64 cost = permanentMultCost(lvl, ClickMultBaseCost);
+            clickMultButton->setText(clicker->compat(QString("Click multiplier: \u00D7%1 \u2192 \u00D7%2  %3 Carat"))
+                                         .arg(1 << lvl)
+                                         .arg(1 << (lvl + 1))
+                                         .arg(clicker->formatNumber(cost)));
+            clickMultButton->setEnabled(clicker->game.carats >= cost);
+        }
+    }
+
+    {
+        const int lvl = clicker->game.incomeMultLevel;
+        if (lvl >= IncomeMultMaxLevel) {
+            incomeMultButton->setText(clicker->compat(QString("Income multiplier: \u00D7%1 (max)")).arg(1 << lvl));
+            incomeMultButton->setEnabled(false);
+        } else {
+            const qint64 cost = permanentMultCost(lvl, IncomeMultBaseCost);
+            incomeMultButton->setText(clicker->compat(QString("Income multiplier: \u00D7%1 \u2192 \u00D7%2  %3 Carat"))
+                                           .arg(1 << lvl)
+                                           .arg(1 << (lvl + 1))
+                                           .arg(clicker->formatNumber(cost)));
+            incomeMultButton->setEnabled(clicker->game.carats >= cost);
+        }
     }
 }
