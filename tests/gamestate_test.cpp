@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #include "gamestate.h"
 #include "game_rules.h"
 
@@ -33,6 +34,12 @@ int main() {
     require(game.secondCardPenaltyUpgraded == false);
     for (const auto count : game.cardCounts) {
         require(count == 0);
+    }
+    for (const auto level : game.cardUpgradeLevel) {
+        require(level == 0);
+    }
+    for (const auto path : game.cardUpgradePath) {
+        require(path == 0);
     }
     require(game.clickCost == 25);
     require(game.incomeCost == 60);

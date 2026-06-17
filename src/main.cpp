@@ -1,4 +1,5 @@
-#include "game_shell.h"
+// SPDX-License-Identifier: GPL-2.0-or-later
+#include "ui/game_shell.h"
 
 #include <QApplication>
 #include <QIcon>

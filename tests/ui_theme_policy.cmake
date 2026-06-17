@@ -1,5 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 set(source_root "${PROJECT_SOURCE_DIR}")
-file(READ "${source_root}/src/clicker.cpp" clicker_cpp)
+file(READ "${source_root}/src/ui/clicker.cpp" clicker_cpp)
 
 function(require_not_contains text pattern message)
     string(FIND "${text}" "${pattern}" match_index)

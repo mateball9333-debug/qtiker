@@ -1,0 +1,477 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+#include "legacy_clicker.h"
+
+#include "core/appversion.h"
+#include "core/game_rules.h"
+#include "core/svg_utils.h"
+#include "core/utils.h"
+
+#include <QCloseEvent>
+#include <QDialog>
+#include <QFont>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QHideEvent>
+#include <QLabel>
+#include <QMessageBox>
+#include <QMouseEvent>
+#include <QPushButton>
+#include <QScrollBar>
+#include <QSettings>
+#include <QTextBrowser>
+#include <QTimer>
+#include <QVBoxLayout>
+
+namespace {
+constexpr auto LegacyVersion = "0.1.2";
+}
+
+LegacyClicker::LegacyClicker(QWidget *parent) : QWidget(parent) {
+    loadGame();
+    buildUi();
+    startIncomeTimer();
+    refreshUi();
+}
+
+void LegacyClicker::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+
+    if (event->type() == QEvent::PaletteChange
+        || event->type() == QEvent::ApplicationPaletteChange
+        || event->type() == QEvent::StyleChange) {
+        QTimer::singleShot(0, this, &LegacyClicker::applyThemeIcons);
+        QTimer::singleShot(100, this, &LegacyClicker::applyThemeIcons);
+    }
+}
+
+void LegacyClicker::closeEvent(QCloseEvent *event) {
+    saveGame();
+    QWidget::closeEvent(event);
+}
+
+void LegacyClicker::hideEvent(QHideEvent *event) {
+    if (incomeTimer) {
+        incomeTimer->stop();
+    }
+    QWidget::hideEvent(event);
+}
+
+void LegacyClicker::showEvent(QShowEvent *event) {
+    QWidget::showEvent(event);
+    if (incomeTimer) {
+        incomeTimer->start();
+    }
+}
+
+bool LegacyClicker::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == clickButton && event->type() == QEvent::MouseButtonRelease) {
+        auto *mouseEvent = static_cast<QMouseEvent *>(event);
+        if (mouseEvent->button() == Qt::MiddleButton) {
+            showTux();
+            return true;
+        }
+    }
+
+    return QWidget::eventFilter(watched, event);
+}
+
+void LegacyClicker::makeClick() {
+    game.score += game.perClick;
+    saveGame();
+    refreshUi();
+}
+
+void LegacyClicker::buyClickUpgrade() {
+    if (game.score < game.clickCost) {
+        return;
+    }
+
+    game.score -= game.clickCost;
+    game.perClick += 1;
+    game.clickCost = nextUpgradeCost(game.clickCost, 10);
+
+    saveGame();
+    refreshUi();
+}
+
+void LegacyClicker::buyIncomeUpgrade() {
+    if (game.score < game.incomeCost) {
+        return;
+    }
+
+    game.score -= game.incomeCost;
+    game.perSecond += 1;
+    game.incomeCost = nextUpgradeCost(game.incomeCost, 15);
+
+    saveGame();
+    refreshUi();
+}
+
+void LegacyClicker::addPassiveIncome() {
+    if (game.perSecond == 0) {
+        return;
+    }
+
+    game.score += game.perSecond;
+    saveGame();
+    refreshUi();
+}
+
+void LegacyClicker::resetGame() {
+    game.reset();
+    saveGame();
+    refreshUi();
+}
+
+void LegacyClicker::showSettings() {
+    auto *dialog = new QDialog(this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle("Qtiker Legacy Settings");
+    dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
+    dialog->resize(320, 210);
+
+    auto *layout = new QVBoxLayout(dialog);
+    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
+    layout->setSpacing(WindowSpacing);
+
+    auto *title = new QLabel("Settings", dialog);
+    setWidgetFont(title, 13, true);
+
+    auto *resetBox = new QFrame(dialog);
+    resetBox->setFrameShape(QFrame::StyledPanel);
+
+    auto *resetLayout = new QHBoxLayout(resetBox);
+    resetLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    resetLayout->setSpacing(DialogSpacing);
+
+    auto *resetText = new QLabel("Reset legacy progress", resetBox);
+    setWidgetFont(resetText, resetText->font().pointSize(), true);
+
+    auto *resetButton = new QPushButton("Reset", resetBox);
+    resetButton->setIcon(tintedSvgIcon(
+        ":/assets/ui/reset.svg",
+        resetButton->palette().color(QPalette::ButtonText),
+        TopIconSize
+    ));
+    resetButton->setIconSize(TopIconSize);
+    connect(resetButton, &QPushButton::clicked, this, [this, dialog]() {
+        auto answer = QMessageBox::question(
+            dialog,
+            "Reset",
+            "Are you sure you want to delete legacy progress?",
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No
+        );
+        if (answer == QMessageBox::Yes) {
+            resetGame();
+            dialog->accept();
+        }
+    });
+
+    resetLayout->addWidget(resetText);
+    resetLayout->addStretch();
+    resetLayout->addWidget(resetButton);
+
+    auto *modeBox = new QFrame(dialog);
+    modeBox->setFrameShape(QFrame::StyledPanel);
+
+    auto *modeLayout = new QHBoxLayout(modeBox);
+    modeLayout->setContentsMargins(PanelMargin, DialogSpacing, PanelMargin, DialogSpacing);
+    modeLayout->setSpacing(DialogSpacing);
+
+    auto *modeText = new QLabel("Game version", modeBox);
+    setWidgetFont(modeText, modeText->font().pointSize(), true);
+
+    auto *modernButton = new QPushButton(QString("Qtiker %1").arg(AppVersion), modeBox);
+    connect(modernButton, &QPushButton::clicked, this, [this, dialog]() {
+        emit switchToModernRequested();
+        dialog->accept();
+    });
+
+    modeLayout->addWidget(modeText);
+    modeLayout->addStretch();
+    modeLayout->addWidget(modernButton);
+
+    auto *closeButton = new QPushButton("Close", dialog);
+    connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
+
+    layout->addWidget(title);
+    layout->addWidget(resetBox);
+    layout->addWidget(modeBox);
+    layout->addStretch();
+    layout->addWidget(closeButton);
+
+    dialog->show();
+}
+
+void LegacyClicker::showChangelog() {
+    auto *dialog = new QDialog(this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle("Qtiker Legacy Release Notes");
+    dialog->setWindowIcon(QIcon(":/assets/qtiker-64.png"));
+    dialog->resize(340, 260);
+
+    auto *layout = new QVBoxLayout(dialog);
+    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
+    layout->setSpacing(DialogSpacing);
+
+    auto *titleLayout = new QHBoxLayout();
+    titleLayout->setSpacing(DialogSpacing);
+
+    auto *title = new QLabel("Release notes", dialog);
+    setWidgetFont(title, 13, true);
+
+    auto *version = new QLabel(QString("v%1").arg(LegacyVersion), dialog);
+    version->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    setWidgetFont(version, version->font().pointSize(), true);
+
+    titleLayout->addWidget(title);
+    titleLayout->addStretch();
+    titleLayout->addWidget(version);
+
+    auto *changes = new QTextBrowser(dialog);
+    changes->setOpenExternalLinks(false);
+    changes->setHtml(changelogHtml());
+
+    auto *foundButton = new QPushButton("you found me!", dialog);
+    QSettings eeCheck("qtiker", "qtiker");
+    const bool alreadyFound = eeCheck.value("easterEggFound", false).toBool();
+    if (alreadyFound) {
+        foundButton->setText("you found me! \u2713");
+        foundButton->setEnabled(false);
+    } else {
+        foundButton->setVisible(false);
+        connect(changes->verticalScrollBar(), &QScrollBar::valueChanged, this,
+                [changes, foundButton](int value) {
+                    foundButton->setVisible(value >= changes->verticalScrollBar()->maximum() - 2);
+                });
+        connect(foundButton, &QPushButton::clicked, this, [foundButton]() {
+            QSettings settings("qtiker", "qtiker");
+            settings.setValue("easterEggFound", true);
+            foundButton->setEnabled(false);
+            foundButton->setText("you found me! \u2713");
+        });
+        QTimer::singleShot(0, this, [changes, foundButton]() {
+            auto *bar = changes->verticalScrollBar();
+            foundButton->setVisible(bar->value() >= bar->maximum() - 2);
+        });
+    }
+
+    auto *closeButton = new QPushButton("Close", dialog);
+    connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
+
+    layout->addLayout(titleLayout);
+    layout->addWidget(changes, 1);
+    layout->addWidget(foundButton);
+    layout->addWidget(closeButton);
+
+    dialog->show();
+}
+
+void LegacyClicker::showTux() {
+    auto *window = new QWidget(this, Qt::Dialog);
+    window->setAttribute(Qt::WA_DeleteOnClose);
+    window->setWindowTitle("Tux");
+    window->setWindowIcon(QIcon(":/assets/tux.png"));
+
+    auto *layout = new QVBoxLayout(window);
+    layout->setContentsMargins(DialogMargin, DialogMargin, DialogMargin, DialogMargin);
+
+    auto *image = new QLabel(window);
+    image->setAlignment(Qt::AlignCenter);
+    image->setPixmap(QPixmap(":/assets/tux.png"));
+
+    layout->addWidget(image);
+
+    window->setFixedSize(290, 350);
+    window->show();
+}
+
+void LegacyClicker::buildUi() {
+    auto *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(WindowMargin, WindowMargin, WindowMargin, WindowMargin);
+    mainLayout->setSpacing(WindowSpacing);
+
+    changelogButton = new QPushButton(QString("  v%1").arg(LegacyVersion), this);
+    changelogButton->setIconSize(TopIconSize);
+    changelogButton->setToolTip("Release notes");
+    changelogButton->setFixedSize(ChangelogButtonSize);
+    setWidgetFont(changelogButton, changelogButton->font().pointSize(), true);
+    connect(changelogButton, &QPushButton::clicked, this, &LegacyClicker::showChangelog);
+
+    settingsButton = new QPushButton(this);
+    settingsButton->setIconSize(TopIconSize);
+    settingsButton->setToolTip("Settings");
+    settingsButton->setFixedSize(TopIconButtonSize);
+    connect(settingsButton, &QPushButton::clicked, this, &LegacyClicker::showSettings);
+    applyThemeIcons();
+
+    auto *topLayout = new QHBoxLayout();
+    topLayout->setContentsMargins(0, 0, 0, 0);
+    topLayout->setSpacing(TopBarSpacing);
+    topLayout->addStretch();
+    topLayout->addWidget(changelogButton);
+    topLayout->addWidget(settingsButton);
+
+    scoreLabel = new QLabel(this);
+    scoreLabel->setAlignment(Qt::AlignCenter);
+    setWidgetFont(scoreLabel, 30, true);
+
+    statsLabel = new QLabel(this);
+    statsLabel->setAlignment(Qt::AlignCenter);
+    setWidgetFont(statsLabel, statsLabel->font().pointSize(), true);
+
+    clickButton = new QPushButton("Click", this);
+    clickButton->setMinimumHeight(76);
+    setWidgetFont(clickButton, 18, true);
+    clickButton->installEventFilter(this);
+    connect(clickButton, &QPushButton::clicked, this, &LegacyClicker::makeClick);
+
+    auto *upgradesBox = createUpgradesBox();
+
+    mainLayout->addLayout(topLayout);
+    mainLayout->addWidget(scoreLabel);
+    mainLayout->addWidget(statsLabel);
+    mainLayout->addWidget(clickButton, 1);
+    mainLayout->addWidget(upgradesBox);
+}
+
+QFrame *LegacyClicker::createUpgradesBox() {
+    auto *box = new QFrame(this);
+    box->setFrameShape(QFrame::StyledPanel);
+
+    auto *layout = new QVBoxLayout(box);
+    layout->setContentsMargins(PanelMargin, PanelMargin, PanelMargin, PanelMargin);
+    layout->setSpacing(DialogSpacing);
+
+    auto *title = new QLabel("Upgrades", box);
+    setWidgetFont(title, title->font().pointSize(), true);
+
+    clickUpgradeButton = new QPushButton(box);
+    incomeUpgradeButton = new QPushButton(box);
+
+    connect(clickUpgradeButton, &QPushButton::clicked, this, &LegacyClicker::buyClickUpgrade);
+    connect(incomeUpgradeButton, &QPushButton::clicked, this, &LegacyClicker::buyIncomeUpgrade);
+
+    layout->addWidget(title);
+    layout->addWidget(clickUpgradeButton);
+    layout->addWidget(incomeUpgradeButton);
+
+    return box;
+}
+
+void LegacyClicker::startIncomeTimer() {
+    incomeTimer = new QTimer(this);
+    incomeTimer->setInterval(1000);
+    connect(incomeTimer, &QTimer::timeout, this, &LegacyClicker::addPassiveIncome);
+    incomeTimer->start();
+}
+
+void LegacyClicker::applyThemeIcons() {
+    if (changelogButton != nullptr) {
+        const auto iconColor = changelogButton->palette().color(QPalette::ButtonText);
+        changelogButton->setIcon(tintedSvgIcon(":/assets/ui/release-notes.svg", iconColor, TopIconSize));
+    }
+
+    if (settingsButton != nullptr) {
+        const auto iconColor = settingsButton->palette().color(QPalette::ButtonText);
+        settingsButton->setIcon(tintedSvgIcon(":/assets/ui/settings.svg", iconColor, TopIconSize));
+    }
+}
+
+void LegacyClicker::refreshUi() {
+    scoreLabel->setText(QString::number(game.score));
+    statsLabel->setText(QString("Click +%1 · Income +%2/sec")
+                            .arg(game.perClick)
+                            .arg(game.perSecond));
+
+    const int clickUpgradesBought = game.perClick > 1 ? game.perClick - 1 : 0;
+    const int incomeUpgradesBought = game.perSecond > 0 ? game.perSecond : 0;
+    clickUpgradeButton->setText(QString("x%1  Click +1       %2").arg(clickUpgradesBought).arg(game.clickCost));
+    incomeUpgradeButton->setText(QString("x%1  Income +1/sec  %2").arg(incomeUpgradesBought).arg(game.incomeCost));
+
+    clickUpgradeButton->setEnabled(game.score >= game.clickCost);
+    incomeUpgradeButton->setEnabled(game.score >= game.incomeCost);
+}
+
+void LegacyClicker::loadGame() {
+    QSettings settings("qtiker", "qtiker-legacy-0.1.2");
+    game.score = settings.value("score", game.score).toLongLong();
+    game.perClick = settings.value("perClick", game.perClick).toInt();
+    game.perSecond = settings.value("perSecond", game.perSecond).toInt();
+    game.clickCost = settings.value("clickCost", game.clickCost).toInt();
+    game.incomeCost = settings.value("incomeCost", game.incomeCost).toInt();
+
+    game.perClick = settings.value("clickPower", game.perClick).toInt();
+    game.perSecond = settings.value("autoPower", game.perSecond).toInt();
+    game.clickCost = settings.value("clickUpgradeCost", game.clickCost).toInt();
+    game.incomeCost = settings.value("autoUpgradeCost", game.incomeCost).toInt();
+}
+
+void LegacyClicker::saveGame() const {
+    QSettings settings("qtiker", "qtiker-legacy-0.1.2");
+    settings.setValue("score", game.score);
+    settings.setValue("perClick", game.perClick);
+    settings.setValue("perSecond", game.perSecond);
+    settings.setValue("clickCost", game.clickCost);
+    settings.setValue("incomeCost", game.incomeCost);
+}
+
+QString LegacyClicker::changelogHtml() const {
+    const auto addIcon = tintedSvgDataUri(":/assets/ui/add.svg", QColor("#2e7d32"), QSize(14, 14));
+    const auto changedIcon = tintedSvgDataUri(":/assets/ui/changed.svg", QColor("#ef6c00"), QSize(13, 13));
+
+    return QStringLiteral(R"(
+        <style>
+            body { font-family: sans-serif; font-size: 10pt; }
+            h3 { margin: 8px 0 5px 0; }
+            table { border-collapse: collapse; margin-bottom: 4px; }
+            td { padding: 2px 0; vertical-align: middle; }
+            .icon { width: 22px; }
+            .version { font-weight: 700; }
+            .date { color: #777; font-size: 9pt; }
+            .entry { padding-left: 2px; }
+        </style>
+        <h3><span class="version">0.1.2</span> <span class="date">2026-06-02</span></h3>
+        <table>
+            <tr>
+                <td class="icon"><img src="%2" width="13" height="13"></td>
+                <td class="entry">Optimized PNG assets - binary ~1 MB lighter.</td>
+            </tr>
+        </table>
+        <h3><span class="version">0.1.1</span> <span class="date">2026-06-02</span></h3>
+        <table>
+            <tr>
+                <td class="icon"><img src="%1" width="14" height="14"></td>
+                <td class="entry">Added compact in-game release notes.</td>
+            </tr>
+            <tr>
+                <td class="icon"><img src="%1" width="14" height="14"></td>
+                <td class="entry">Added colored release note markers.</td>
+            </tr>
+            <tr>
+                <td class="icon"><img src="%1" width="14" height="14"></td>
+                <td class="entry">Added a settings dialog.</td>
+            </tr>
+            <tr>
+                <td class="icon"><img src="%1" width="14" height="14"></td>
+                <td class="entry">Added reset confirmation.</td>
+            </tr>
+            <tr>
+                <td class="icon"><img src="%2" width="13" height="13"></td>
+                <td class="entry">Moved reset into settings.</td>
+            </tr>
+            <tr>
+                <td class="icon"><img src="%2" width="13" height="13"></td>
+                <td class="entry">Updated 0.1.1 metadata.</td>
+            </tr>
+        </table>
+        <h3><span class="version">0.1.0</span> <span class="date">2026-06-01</span></h3>
+        <table>
+            <tr>
+                <td class="icon"><img src="%2" width="13" height="13"></td>
+                <td class="entry">Initial packaged version.</td>
+            </tr>
+        </table>
+    )").arg(addIcon, changedIcon);
+}

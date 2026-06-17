@@ -23,6 +23,7 @@ The following files are based on Google Material Symbols:
 - `assets/ui/bolt.svg`
 - `assets/ui/bookmark.svg`
 - `assets/ui/candle.svg`
+- `assets/ui/casino.svg`
 - `assets/ui/changed.svg`
 - `assets/ui/clock.svg`
 - `assets/ui/hourglass.svg`
@@ -39,6 +40,14 @@ The following files are based on Google Material Symbols:
 - `assets/ui/stat-neutral.svg`
 - `assets/ui/stat-up-double.svg`
 - `assets/ui/stat-up.svg`
+- `assets/ui/alert.svg`
+- `assets/ui/apple.svg`
+- `assets/ui/bug.svg`
+- `assets/ui/delete.svg`
+- `assets/ui/diamond.svg`
+- `assets/ui/dna.svg`
+- `assets/ui/language.svg`
+- `assets/ui/mystery.svg`
 
 Source: https://fonts.google.com/icons
 

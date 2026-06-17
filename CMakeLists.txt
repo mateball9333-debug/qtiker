@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qtiker VERSION 0.9.0 LANGUAGES CXX)
+project(qtiker VERSION 0.9.1 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CTest)
@@ -12,36 +12,41 @@ configure_file(io.github.mateball9333.qtiker.metainfo.xml.in io.github.mateball9
 
 add_executable(qtiker
     src/main.cpp
-    src/clicker.cpp
-    src/clicker.h
-    src/game_shell.cpp
-    src/game_shell.h
-    src/gacha_dialog.cpp
-    src/gacha_dialog.h
-    src/gamestate.h
-    src/game_rules.h
-    src/legacy_clicker.cpp
-    src/legacy_clicker.h
-    src/legacy_gamestate.h
-    src/particle_overlay.cpp
-    src/particle_overlay.h
-    src/release_notes.h
-    src/appversion.h
-    src/svg_utils.h
-    src/utils.h
-    src/settings_dialog.cpp
-    src/settings_dialog.h
-    src/carat_dialog.cpp
-    src/carat_dialog.h
-    src/statistics_dialog.cpp
-    src/statistics_dialog.h
-    src/save_slots_dialog.cpp
-    src/save_slots_dialog.h
-    src/casino_dialog.cpp
-    src/casino_dialog.h
-    src/status_bar.cpp
-    src/status_bar.h
+    src/ui/clicker.cpp
+    src/ui/clicker.h
+    src/ui/clicker_cards.cpp
+    src/ui/clicker_economy.cpp
+    src/ui/clicker_save.cpp
+    src/ui/game_shell.cpp
+    src/ui/game_shell.h
+    src/ui/gacha_dialog.cpp
+    src/ui/gacha_dialog.h
+    src/ui/legacy_clicker.cpp
+    src/ui/legacy_clicker.h
+    src/ui/legacy_gamestate.h
+    src/ui/particle_overlay.cpp
+    src/ui/particle_overlay.h
+    src/ui/release_notes.h
+    src/ui/settings_dialog.cpp
+    src/ui/settings_dialog.h
+    src/ui/carat_dialog.cpp
+    src/ui/carat_dialog.h
+    src/ui/statistics_dialog.cpp
+    src/ui/statistics_dialog.h
+    src/ui/save_slots_dialog.cpp
+    src/ui/save_slots_dialog.h
+    src/ui/casino_dialog.cpp
+    src/ui/casino_dialog.h
+    src/ui/status_bar.cpp
+    src/ui/status_bar.h
+    src/core/gamestate.h
+    src/core/game_rules.h
+    src/core/cards.h
+    src/core/utils.h
+    src/core/svg_utils.h
+    src/core/appversion.h
 )
+target_include_directories(qtiker PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(qtiker Qt6::Widgets Qt6::Svg Qt6::Multimedia)
 
 set(ResourceFiles
@@ -50,6 +55,7 @@ set(ResourceFiles
     assets/ui/add.svg
     assets/ui/carat.png
     assets/ui/changed.svg
+    assets/ui/casino.svg
     assets/ui/clock.svg
     assets/ui/info.svg
     assets/ui/release-notes.svg
@@ -68,6 +74,14 @@ set(ResourceFiles
     assets/ui/candle.svg
     assets/ui/hourglass.svg
     assets/ui/snowflake.svg
+    assets/ui/alert.svg
+    assets/ui/apple.svg
+    assets/ui/bug.svg
+    assets/ui/delete.svg
+    assets/ui/diamond.svg
+    assets/ui/dna.svg
+    assets/ui/language.svg
+    assets/ui/mystery.svg
     assets/sound/click.wav
     assets/sound/buy.wav
     assets/sound/crit.wav
@@ -90,7 +104,7 @@ qt_add_resources(qtiker "app_resources"
 
 if(BUILD_TESTING)
     add_executable(qtiker_state_tests tests/gamestate_test.cpp)
-    target_include_directories(qtiker_state_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_include_directories(qtiker_state_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/core)
     target_link_libraries(qtiker_state_tests Qt6::Core)
     add_test(NAME gamestate COMMAND qtiker_state_tests)
 
@@ -99,6 +113,12 @@ if(BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND}
             -DPROJECT_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/ui_theme_policy.cmake
+    )
+    add_test(
+        NAME ui_cursor_policy
+        COMMAND ${CMAKE_COMMAND}
+            -DPROJECT_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/ui_cursor_policy.cmake
     )
 endif()
 
